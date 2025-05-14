@@ -1,0 +1,45 @@
+fleet-management/
+├── src/
+│   ├── app/
+│   │   ├── (auth)/
+│   │   │   ├── login/
+│   │   │   └── register/
+│   │   ├── (dashboard)/
+│   │   │   ├── analytics/
+│   │   │   ├── drivers/
+│   │   │   ├── maintenance/
+│   │   │   ├── settings/
+│   │   │   ├── trips/
+│   │   │   └── vehicles/
+│   │   ├── (marketing)/
+│   │   │   ├── about/
+│   │   │   ├── contact/
+│   │   │   └── services/
+│   │   ├── api/
+│   │   │   ├── auth/
+│   │   │   ├── drivers/
+│   │   │   ├── maintenance/
+│   │   │   ├── trips/
+│   │   │   └── vehicles/
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── components/
+│   │   ├── auth/
+│   │   ├── dashboard/
+│   │   ├── layout/
+│   │   ├── marketing/
+│   │   ├── sections/
+│   │   └── ui/
+│   ├── lib/
+│   │   ├── api/
+│   │   ├── db/
+│   │   ├── types/
+│   │   └── utils/
+│   └── styles/
+├── public/
+│   ├── images/
+│   └── fonts/
+├── prisma/
+│   └── schema.prisma
+└── package.json
+
