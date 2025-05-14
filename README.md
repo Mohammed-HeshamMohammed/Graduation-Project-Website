@@ -19,13 +19,14 @@ This project demonstrates a full-stack web architecture, blending powerful moder
 
 ## 📊 Project Completion Status
 
-| 🧩 **Module**         | 🚀 **Status**              |
-|----------------------|----------------------------|
-| ✅ Frontend UI        | ██████████░░ 90% Complete  |
-| 🛠️ Node.js Backend    | █████░░░░░░ 45% Complete   |
-| 🧬 FastAPI Backend     | ███░░░░░░░░ 30% Complete   |
-| 🔗 API Integration     | ██░░░░░░░░░ 20% Complete   |
-| 📦 Final Testing       | █░░░░░░░░░░ 10% Complete   |
+| 🧩 Module             | 🚀 Status                                           |
+|----------------------|-----------------------------------------------------|
+| ✅ Frontend UI        | ![90%](https://img.shields.io/badge/Progress-90%25-brightgreen) |
+| 🛠️ Node.js Backend    | ![45%](https://img.shields.io/badge/Progress-45%25-yellow)      |
+| 🧬 FastAPI Backend     | ![30%](https://img.shields.io/badge/Progress-30%25-orange)      |
+| 🔗 API Integration     | ![20%](https://img.shields.io/badge/Progress-20%25-red)         |
+| 📦 Final Testing       | ![10%](https://img.shields.io/badge/Progress-10%25-red)         |
+
 
 
 ---
