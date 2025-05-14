@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+bcrypt
+itsdangerous
+pycryptodome
+python-dotenv
