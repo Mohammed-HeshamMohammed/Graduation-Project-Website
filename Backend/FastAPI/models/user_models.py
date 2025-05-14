@@ -1,9 +1,16 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
 
-class RegisterRequest(BaseModel):
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+
+class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-class LoginRequest(BaseModel):
+class UserResponse(BaseModel):
     email: EmailStr
-    password: str
+    verified: bool
+    message: str
+    token: Optional[str] = None

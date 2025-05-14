@@ -1,29 +1,67 @@
 import os
-from app.config import DATA_FILE
-from app.services.crypto import encrypt_json, decrypt_json
+import json
+from pathlib import Path
+from app.services.crypto import encrypt_data, decrypt_data
+from app.config import settings
 
-def load_all_users():
-    if not os.path.exists(DATA_FILE):
-        return []
-    with open(DATA_FILE, "rb") as f:
-        return decrypt_json(f.read())
-
-def save_all_users(users):
-    with open(DATA_FILE, "wb") as f:
-        f.write(encrypt_json(users))
-
-def load_user(email):
-    users = load_all_users()
-    return next((u for u in users if u["email"] == email), None)
-
-def save_user(user):
-    users = load_all_users()
-    users.append(user)
-    save_all_users(users)
-
-def update_user_verified(email):
-    users = load_all_users()
-    for u in users:
-        if u["email"] == email:
-            u["verified"] = True
-    save_all_users(users)
+class UserStorage:
+    def __init__(self):
+        """Initialize storage with the file path from settings"""
+        self.data_path = Path(settings.DATA_DIR) / settings.USER_DATA_FILE
+        self.users = self._load_users()
+    
+    def _load_users(self):
+        """Load users from encrypted file"""
+        if not os.path.exists(self.data_path):
+            return {}
+        
+        try:
+            with open(self.data_path, 'rb') as f:
+                encrypted_data = f.read()
+                if not encrypted_data:
+                    return {}
+                    
+                decrypted_data = decrypt_data(encrypted_data)
+                return json.loads(decrypted_data.decode('utf-8'))
+        except Exception as e:
+            print(f"Error loading user data: {e}")
+            return {}
+    
+    def _save_users(self):
+        """Save users to encrypted file"""
+        os.makedirs(os.path.dirname(self.data_path), exist_ok=True)
+        
+        # Convert users dict to JSON and then to bytes
+        users_bytes = json.dumps(self.users).encode('utf-8')
+        
+        # Encrypt the data
+        encrypted_data = encrypt_data(users_bytes)
+        
+        # Write to file
+        with open(self.data_path, 'wb') as f:
+            f.write(encrypted_data)
+    
+    def get_user_by_email(self, email: str):
+        """Get a user by email"""
+        return self.users.get(email)
+    
+    def save_user(self, user: dict):
+        """Save a new user"""
+        self.users[user["email"]] = user
+        self._save_users()
+    
+    def update_user(self, user: dict):
+        """Update an existing user"""
+        if user["email"] in self.users:
+            self.users[user["email"]] = user
+            self._save_users()
+            return True
+        return False
+    
+    def delete_user(self, email: str):
+        """Delete a user"""
+        if email in self.users:
+            del self.users[email]
+            self._save_users()
+            return True
+        return False
