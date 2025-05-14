@@ -19,13 +19,16 @@ This project demonstrates a full-stack web architecture, blending powerful moder
 
 ## 📊 Project Completion Status
 
-| Module           | Status         |
-|------------------|----------------|
-| ✅ Frontend UI    | ![90%](https://progress-bar.dev/90) |
-| 🛠️ Node.js Backend | ![45%](https://progress-bar.dev/45) |
-| 🔬 FastAPI Backend | ![30%](https://progress-bar.dev/30) |
-| ⚙️ API Integration | ![20%](https://progress-bar.dev/20) |
-| 📦 Final Testing   | ![10%](https://progress-bar.dev/10) |
+## 📊 Project Completion Status
+
+| 🧩 **Module**         | 🚀 **Status**                          |
+|----------------------|----------------------------------------|
+| ✅ Frontend UI        | ![90%](https://progress-bar.dev/90)    |
+| 🛠️ Node.js Backend    | ![45%](https://progress-bar.dev/45)    |
+| 🧬 FastAPI Backend     | ![30%](https://progress-bar.dev/30)    |
+| 🔗 API Integration     | ![20%](https://progress-bar.dev/20)    |
+| 📦 Final Testing       | ![10%](https://progress-bar.dev/10)    |
+
 
 ---
 
