@@ -1,0 +1,20 @@
+This directory contains placeholder images for the fleet management system:
+
+- avatar-1.jpg, avatar-2.jpg, avatar-3.jpg: User avatars for testimonials
+- pattern-bg.png: Background pattern for hero section
+- fleet-dashboard.png: Screenshot of the fleet management dashboard
+- trip-map.jpg: Map showing active trips
+- performance-chart.jpg: Chart showing performance metrics
+- fuel-chart.jpg: Chart showing fuel consumption
+- maintenance-chart.jpg: Chart showing maintenance costs
+- vehicle-performance.jpg: Chart showing vehicle performance
+- driver-performance.jpg: Chart showing driver performance
+- cost-analysis.jpg: Chart showing cost analysis
+- fleet-report.jpg, vehicle-report.jpg, driver-report.jpg, maintenance-report.jpg, fuel-report.jpg, cost-report.jpg: Report previews
+- office-map.jpg: Map showing office location
+- fleet-management.jpg: Image for fleet management service
+- driver-management.jpg: Image for driver management service
+- maintenance-tracking.jpg: Image for maintenance tracking service
+- trip-analytics.jpg: Image for trip analytics service
+- fuel-management.jpg: Image for fuel management service
+

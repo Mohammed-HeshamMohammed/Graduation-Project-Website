@@ -1,0 +1,12 @@
+/* File: progress-bar.module.css */
+.progressBarContainer {
+  background-color: #f3f4f6;
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  border-radius: 0.25rem;
+  transition: width 300ms;
+}
