@@ -9,9 +9,9 @@ export function HeroSection() {
         <Image 
           src="/images/hero-truck.jpg" 
           alt="A truck representing fleet management solutions" 
-          layout="fill" 
-          objectFit="cover" 
-          priority 
+          fill 
+          priority
+          style={{ objectFit: 'cover' }}
         />
       </div>
       {/* Gradient Overlay */}

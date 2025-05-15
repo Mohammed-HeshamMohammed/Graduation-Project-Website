@@ -1,8 +1,9 @@
+# app/services/storage.py
 import os
 import json
 from pathlib import Path
-from app.services.crypto import encrypt_data, decrypt_data
-from app.config import settings
+from ..services.crypto import encrypt_data, decrypt_data
+from ..config import settings
 
 class UserStorage:
     def __init__(self):

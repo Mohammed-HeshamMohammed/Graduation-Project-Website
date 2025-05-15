@@ -1,0 +1,14 @@
+
+Backend/FastAPI/venv/
+
+Backend/FastAPI/app/__pycache__/
+
+Backend/FastAPI/app/middleware/__pycache__/
+
+Backend/FastAPI/app/models/__pycache__/
+
+Backend/FastAPI/app/routes/__pycache__/
+
+Backend/FastAPI/app/services/__pycache__/
+
+.vscode/
