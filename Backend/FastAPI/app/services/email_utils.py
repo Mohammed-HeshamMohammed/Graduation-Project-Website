@@ -4,6 +4,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from ..config import settings
 import logging
+import traceback
 
 # Configure logging for better error tracking
 logger = logging.getLogger(__name__)
@@ -53,15 +54,20 @@ async def send_verification_email(email: str, token: str):
     message.attach(part1)
     message.attach(part2)
     
-    # Log the verification URL in development environment
+    # Always log the verification URL in development environment
     if settings.ENV == "development":
         logger.info(f"\n--- VERIFICATION EMAIL ---\nTo: {email}\nURL: {verification_url}\n--- END EMAIL ---\n")
+        # In development, we can "pretend" we sent the email
+        return True
     
-    # Always try to send the email
+    # In production, try to send the email
     try:
         # Check if SMTP credentials are configured
         if not all([settings.SMTP_SERVER, settings.SMTP_USERNAME, settings.SMTP_PASSWORD]):
             logger.warning("SMTP credentials not configured properly. Email not sent.")
+            if settings.ENV == "development":
+                # In development, we pretend it was sent anyway
+                return True
             return False
             
         with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT) as server:
@@ -71,5 +77,9 @@ async def send_verification_email(email: str, token: str):
             logger.info(f"Verification email sent to {email}")
             return True
     except Exception as e:
-        logger.error(f"Failed to send email: {e}")
+        logger.error(f"Failed to send email: {str(e)}")
+        logger.error(traceback.format_exc())
+        # In development, we'll consider it "sent" anyway
+        if settings.ENV == "development":
+            return True
         return False

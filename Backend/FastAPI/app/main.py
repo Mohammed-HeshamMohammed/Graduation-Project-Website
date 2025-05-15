@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.routes import auth, fleet
 from app.config import settings
 from app.middleware.security import SecurityHeadersMiddleware, RequestLoggingMiddleware
+from app.services.logging_service import LoggingMiddleware  # Import LoggingMiddleware
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -23,6 +24,7 @@ app = FastAPI(
 # Add security middleware
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(LoggingMiddleware)  # Add LoggingMiddleware
 
 # CORS Setup
 app.add_middleware(

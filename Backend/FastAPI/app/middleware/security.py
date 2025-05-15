@@ -4,6 +4,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.config import settings
 import time
 import logging
+from app.services.logging_service import LoggingMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -37,3 +38,10 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         logger.info(f"Response: {request.method} {request.url.path} - Status: {response.status_code} - Time: {process_time:.3f}s")
         
         return response
+
+# Export our middlewares
+__all__ = [
+    'SecurityHeadersMiddleware',
+    'RequestLoggingMiddleware',
+    'LoggingMiddleware'  # Add our new LoggingMiddleware
+]

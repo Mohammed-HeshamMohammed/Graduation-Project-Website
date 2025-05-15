@@ -1,14 +1,16 @@
+// Updated navbar.tsx file
+
 "use client"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Truck, Menu, Home, Info, Mail, BarChart } from "lucide-react"
 import { AuthModal } from "./auth-modal"
 import { ContextMenu } from "./context-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const navItems = [
   { label: "HOME", href: "/", icon: <Home className="h-4 w-4" /> },
@@ -18,8 +20,10 @@ const navItems = [
   { label: "DEMO", href: "/demo-dashboard", icon: <BarChart className="h-4 w-4" /> },
 ]
 
-// Create a custom event for login state changes
-export const LOGIN_STATE_CHANGED = "loginStateChanged"
+// API endpoints
+const API_BASE_URL = "http://localhost:8000/api";
+const STATUS_URL = `${API_BASE_URL}/status`;
+const LOGOUT_URL = `${API_BASE_URL}/logout`;
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -27,21 +31,72 @@ export default function Navbar() {
   const [user, setUser] = useState<{ name: string; email: string } | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isMobileView, setIsMobileView] = useState(false)
-  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
-  // Function to check and update login state
-  const checkLoginState = () => {
-    const token = localStorage.getItem("token")
-    const userData = localStorage.getItem("user")
+  // Function to get first two names from full name
+  const getShortName = (fullName: string) => {
+    if (!fullName) return "User";
+    const nameParts = fullName.split(' ');
+    return nameParts.length > 1 
+      ? `${nameParts[0]} ${nameParts[1]}`
+      : fullName;
+  };
 
-    if (token && userData) {
-      setIsLoggedIn(true)
-      setUser(JSON.parse(userData))
-    } else {
-      setIsLoggedIn(false)
-      setUser(null)
+  // Function to check and update login state
+  const checkLoginState = async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setIsLoggedIn(false);
+        setUser(null);
+        return;
+      }
+
+      const response = await fetch(`${STATUS_URL}?token=${token}`);
+      const data = await response.json();
+
+      if (data.is_logged_in) {
+        setIsLoggedIn(true);
+        setUser({
+          name: data.full_name || "User",
+          email: data.email
+        });
+      } else {
+        // Token is invalid or expired
+        localStorage.removeItem("authToken");
+        setIsLoggedIn(false);
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Error checking login status:", error);
+      setIsLoggedIn(false);
+      setUser(null);
+    }
+  }
+
+  // Handle successful login
+  const handleLoginSuccess = () => {
+    checkLoginState();
+  }
+
+  // Handle navigation from context menu
+  const handleNavigation = (destination: string) => {
+    switch(destination) {
+      case 'profile':
+        router.push('/profile');
+        break;
+      case 'dashboard':
+        router.push('/demo-dashboard');
+        break;
+      case 'settings':
+        router.push('/settings');
+        break;
+      case 'team-access':
+        router.push('/team-access');
+        break;
+      default:
+        break;
     }
   }
 
@@ -66,30 +121,45 @@ export default function Navbar() {
     // Add event listeners
     window.addEventListener("scroll", handleScroll)
     window.addEventListener("resize", handleResize)
-    window.addEventListener(LOGIN_STATE_CHANGED, handleLoginStateChange)
-    
-    // Check for login state changes periodically (as a fallback)
-    const loginCheckInterval = setInterval(checkLoginState, 2000)
+    window.addEventListener("loginStateChanged", handleLoginStateChange)
     
     return () => {
       window.removeEventListener("scroll", handleScroll)
       window.removeEventListener("resize", handleResize)
-      window.removeEventListener(LOGIN_STATE_CHANGED, handleLoginStateChange)
-      clearInterval(loginCheckInterval)
+      window.removeEventListener("loginStateChanged", handleLoginStateChange)
     }
   }, [])
 
-  const handleLogout = () => {
-    localStorage.removeItem("token")
-    localStorage.removeItem("user")
-    setIsLoggedIn(false)
-    setUser(null)
-    
-    // Dispatch event to notify other components
-    window.dispatchEvent(new Event(LOGIN_STATE_CHANGED))
-    
-    router.push("/")
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+      await fetch(LOGOUT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      
+      // Clear local storage
+      localStorage.removeItem("authToken");
+      
+      // Update state
+      setIsLoggedIn(false);
+      setUser(null);
+      setIsContextMenuOpen(false);
+      
+      // Dispatch event to notify other components
+      window.dispatchEvent(new Event("loginStateChanged"));
+      
+      router.push("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   }
+
+  // Get shortened user name for display
+  const shortUserName = user ? getShortName(user.name) : "User";
 
   // Desktop Navbar Component
   const DesktopNavbar = () => (
@@ -137,33 +207,20 @@ export default function Navbar() {
 
           <div className="flex items-center space-x-4 min-w-[160px] justify-end">
             {isLoggedIn ? (
-              <>
-                {/* Avatar Button that opens Context Menu */}
-                <Button 
-                  variant="ghost" 
-                  className={`relative rounded-full p-0 h-10 w-10 border-2 ${
-                    isScrolled ? "border-blue-600" : "border-yellow-400"
-                  }`}
-                  onClick={() => setIsContextMenuOpen(true)}
-                >
-                  <Avatar className="h-full w-full">
-                    <AvatarImage src="/images/avatar-1.jpg" alt={user?.name || "User"} />
-                    <AvatarFallback className={isScrolled ? "bg-blue-100 text-blue-600" : "bg-yellow-400/20 text-white"}>
-                      {user?.name?.charAt(0) || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-                
-                {/* Context Menu */}
-                <ContextMenu 
-                  isOpen={isContextMenuOpen} 
-                  onClose={() => setIsContextMenuOpen(false)} 
-                />
-              </>
+              <ContextMenu 
+                isLoggedIn={isLoggedIn}
+                onLogout={handleLogout}
+                onNavigate={handleNavigation}
+                userName={user?.name || "User"}
+                userEmail={user?.email || "user@example.com"}
+                avatarSrc="/images/avatar-1.jpg"
+                isScrolled={isScrolled}
+              />
             ) : (
               <AuthModal 
                 useAvatar={true}
                 defaultTab="login"
+                onLoginSuccess={handleLoginSuccess}
               />
             )}
             
@@ -212,6 +269,37 @@ export default function Navbar() {
                     </nav>
                   </div>
                   
+                  {/* Add authentication options in mobile menu */}
+                  <div className="p-4 border-t mt-auto">
+                    {isLoggedIn ? (
+                      <div className="flex flex-col space-y-2">
+                        <div className="flex items-center gap-3 mb-2">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src="/images/avatar-1.jpg" alt={user?.name} />
+                            <AvatarFallback className="bg-blue-100 text-blue-600">
+                              {user?.name?.charAt(0) || "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium text-sm">
+                              {user?.name ? user.name.split(' ').slice(0, 2).join(' ') : "User"}
+                            </div>
+                            <div className="text-xs text-gray-500">{user?.email}</div>
+                          </div>
+                        </div>
+                        <Button variant="outline" className="w-full" onClick={handleLogout}>
+                          Log Out
+                        </Button>
+                      </div>
+                    ) : (
+                      <AuthModal 
+                        triggerVariant="default"
+                        triggerText="Login / Register"
+                        className="w-full"
+                        onLoginSuccess={handleLoginSuccess}
+                      />
+                    )}
+                  </div>
                 </div>
               </SheetContent>
             </Sheet>
@@ -259,4 +347,8 @@ export default function Navbar() {
       {isMobileView && <div className="h-16" />}
     </>
   )
+}
+
+function setIsContextMenuOpen(arg0: boolean) {
+  throw new Error("Function not implemented.")
 }

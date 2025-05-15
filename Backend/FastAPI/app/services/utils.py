@@ -1,5 +1,5 @@
 # app/services/utils.py
-import jwt
+from jose import jwt  # Change from import jwt to from jose import jwt
 import bcrypt
 from datetime import datetime, timedelta
 import secrets
@@ -73,7 +73,7 @@ def verify_token(token: str) -> dict:
     except jwt.ExpiredSignatureError:
         logger.warning("Token expired")
         return {"error": "Token expired"}
-    except jwt.InvalidTokenError as e:
+    except jwt.JWTError as e:  # Change from jwt.InvalidTokenError to jwt.JWTError
         logger.warning(f"Invalid token: {e}")
         return {"error": "Invalid token"}
     except Exception as e:

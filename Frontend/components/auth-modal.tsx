@@ -28,13 +28,19 @@ export function AuthModal({
   const [isOpen, setIsOpen] = useState(false);
 
   const handleAuthSuccess = (userData: any) => {
-    // Just close the modal and notify the parent component
+    // Store user data in localStorage for persistence across page reloads
+    if (userData.token) {
+      localStorage.setItem("authToken", userData.token);
+    }
+    
+    // Close the modal 
     setIsOpen(false);
     
     // Trigger a custom event to let other components know the login state changed
     const event = new Event('loginStateChanged');
     window.dispatchEvent(event);
     
+    // Call the parent's callback if provided
     if (onLoginSuccess) {
       onLoginSuccess();
     }

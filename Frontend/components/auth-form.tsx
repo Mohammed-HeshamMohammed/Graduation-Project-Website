@@ -12,8 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, Mail, User, Building, MapPin, Lock, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
-// Define API URLs
-const API_BASE_URL = "http://localhost:8000/api";
+// Define API URLs dynamically based on environment
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 const LOGIN_URL = `${API_BASE_URL}/login`;
 const REGISTER_URL = `${API_BASE_URL}/register`;
 const STATUS_URL = `${API_BASE_URL}/status`;
@@ -27,7 +27,7 @@ const passwordRegex = {
   special: /[!@#$%^&*(),.?":{}|<>]/,
 };
 
-// Define form schemas
+// Define form schemas - matching backend requirements
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
   password: z.string().min(8, { message: "Password must be at least 8 characters" }),
@@ -82,6 +82,7 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
+  const [verificationSent, setVerificationSent] = useState(false);
   const { toast } = useToast();
 
   // Login form
@@ -119,15 +120,21 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
         const data = await response.json();
 
         if (data.is_logged_in) {
+          // Pass user data to parent component to update the UI
           onSuccess({
             email: data.email,
             name: data.full_name,
             token: token,
             verified: true,
           });
+          
+          // Dispatch event to notify other components about login state change
+          window.dispatchEvent(new Event("loginStateChanged"));
         }
       } catch (error) {
         console.error("Error checking login status:", error);
+        // Clear potentially invalid token
+        localStorage.removeItem("authToken");
       } finally {
         setIsCheckingStatus(false);
       }
@@ -140,9 +147,23 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
   const passwordValue = registerForm.watch("password");
   const strength = calculatePasswordStrength(passwordValue || "");
 
+  // Helper function to handle API errors
+  const handleApiError = (error: any, defaultMessage: string) => {
+    let errorMessage = defaultMessage;
+    
+    if (error.message && typeof error.message === 'string') {
+      errorMessage = error.message;
+    } else if (error.detail && typeof error.detail === 'string') {
+      errorMessage = error.detail;
+    }
+    
+    return errorMessage;
+  };
+
   // Login function
   async function onLoginSubmit(data: LoginFormValues) {
     setIsLoading(true);
+    setVerificationSent(false);
     
     try {
       const response = await fetch(LOGIN_URL, {
@@ -156,6 +177,11 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
       const responseData = await response.json();
       
       if (!response.ok) {
+        // Special case for unverified email
+        if (response.status === 401 && responseData.detail?.includes("not verified")) {
+          setVerificationSent(true);
+          throw new Error("Email not verified. A new verification email has been sent.");
+        }
         throw new Error(responseData.detail || "Login failed");
       }
       
@@ -170,16 +196,22 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
         duration: 3000,
       });
       
+      // Pass user data to parent component
       onSuccess({
         email: responseData.email,
         name: responseData.full_name,
         token: responseData.token,
         verified: responseData.verified,
       });
+      
+      // Dispatch event to notify other components about login state change
+      window.dispatchEvent(new Event("loginStateChanged"));
     } catch (error: any) {
+      const errorMessage = handleApiError(error, "Please check your credentials and try again");
+      
       toast({
         title: "Login failed",
-        description: error.message || "Please check your credentials and try again",
+        description: errorMessage,
         variant: "destructive",
         duration: 5000,
       });
@@ -204,6 +236,10 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
       const responseData = await response.json();
       
       if (!response.ok) {
+        // Check for specific error cases
+        if (response.status === 409) {
+          throw new Error("This email is already registered. Please log in instead.");
+        }
         throw new Error(responseData.detail || "Registration failed");
       }
       
@@ -213,12 +249,20 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
         duration: 5000,
       });
       
+      // Reset the register form
+      registerForm.reset();
+      
+      // Pre-fill login email for convenience
+      loginForm.setValue("email", data.email);
+      
       // Switch to login tab after successful registration
       setActiveTab("login");
     } catch (error: any) {
+      const errorMessage = handleApiError(error, "Please check your information and try again");
+      
       toast({
         title: "Registration failed",
-        description: error.message || "Please check your information and try again",
+        description: errorMessage,
         variant: "destructive",
         duration: 5000,
       });
@@ -226,28 +270,6 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
       setIsLoading(false);
     }
   }
-
-  // Handle logout
-  const handleLogout = async () => {
-    try {
-      await fetch(LOGOUT_URL, {
-        method: "POST",
-      });
-      
-      // Remove token from localStorage
-      localStorage.removeItem("authToken");
-      
-      toast({
-        title: "Logged out",
-        description: "You have been logged out successfully",
-        duration: 3000,
-      });
-      
-      // Redirect to login page or update UI as needed
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
 
   const formVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -276,6 +298,12 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
 
         <TabsContent value="login">
           <motion.div variants={formVariants} initial="hidden" animate="visible">
+            {verificationSent && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-700 text-sm">
+                A verification email has been sent. Please check your inbox and verify your account before logging in.
+              </div>
+            )}
+            
             <Form {...loginForm}>
               <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                 <FormField
@@ -320,7 +348,18 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
                   )}
                 />
                 <div className="flex justify-end">
-                  <Button variant="link" className="text-xs text-blue-600 hover:text-blue-800 p-0 h-auto" type="button">
+                  <Button 
+                    variant="link" 
+                    className="text-xs text-blue-600 hover:text-blue-800 p-0 h-auto" 
+                    type="button"
+                    onClick={() => {
+                      toast({
+                        title: "Reset Password",
+                        description: "Password reset functionality will be implemented soon. Please contact support for assistance.",
+                        duration: 5000,
+                      });
+                    }}
+                  >
                     Forgot Password?
                   </Button>
                 </div>
@@ -419,6 +458,23 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
                                 />
                               ))}
                             </div>
+                            <ul className="text-xs mt-2 text-gray-600 space-y-1">
+                              <li className={passwordValue.length >= 8 ? "text-green-600" : ""}>
+                                ✓ At least 8 characters
+                              </li>
+                              <li className={passwordRegex.uppercase.test(passwordValue) ? "text-green-600" : ""}>
+                                ✓ At least one uppercase letter
+                              </li>
+                              <li className={passwordRegex.lowercase.test(passwordValue) ? "text-green-600" : ""}>
+                                ✓ At least one lowercase letter
+                              </li>
+                              <li className={passwordRegex.number.test(passwordValue) ? "text-green-600" : ""}>
+                                ✓ At least one number
+                              </li>
+                              <li className={passwordRegex.special.test(passwordValue) ? "text-green-600" : ""}>
+                                ✓ At least one special character
+                              </li>
+                            </ul>
                           </div>
                         )}
                       </FormItem>

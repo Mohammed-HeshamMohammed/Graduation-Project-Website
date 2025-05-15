@@ -1,9 +1,10 @@
 # app/routes/auth.py
 from fastapi import APIRouter, HTTPException, Request, Response, Depends, Query, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from typing import Optional
 import time
 import logging
+import traceback
 from pydantic import ValidationError
 
 # Use relative imports for better compatibility
@@ -13,9 +14,9 @@ from app.services.crypto import encrypt_data, decrypt_data
 from app.services.email_utils import send_verification_email
 from app.services.utils import hash_password, verify_password, create_token, verify_token, validate_password_strength
 from app.config import settings
+from app.services import logging_service
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -59,7 +60,7 @@ async def register(user_data: UserRegister, request: Request):
     
     # Check rate limiting for registration
     if not check_rate_limit(client_ip, "register", 3, 300):  # 3 registrations per 5 minutes
-        logger.warning(f"Rate limit exceeded for registration from {client_ip}")
+        logging_service.warning(request, f"Rate limit exceeded for registration from {client_ip}")
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many registration attempts. Please try again later."
@@ -67,22 +68,27 @@ async def register(user_data: UserRegister, request: Request):
     
     # Validate password strength
     if not validate_password_strength(user_data.password):
+        logging_service.warning(request, "Password does not meet strength requirements")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters"
         )
     
     try:
+        logging_service.info(request, f"Registration attempt for email: {user_data.email}")
+        
         # Check if user already exists
         existing_user = user_storage.get_user_by_email(user_data.email)
         if existing_user:
             if existing_user.get("verified", False):
+                logging_service.warning(request, f"User {user_data.email} already registered and verified")
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT, 
                     detail="Email already registered"
                 )
             else:
                 # Resend verification for unverified users
+                logging_service.info(request, f"User {user_data.email} exists but not verified. Resending verification.")
                 token = create_token({"email": user_data.email, "type": "verification"}, 1440)  # 24 hours
                 await send_verification_email(user_data.email, token)
                 return {
@@ -93,6 +99,7 @@ async def register(user_data: UserRegister, request: Request):
                 }
         
         # Create new user
+        logging_service.info(request, f"Creating new user: {user_data.email}")
         hashed_password = hash_password(user_data.password)
         new_user = {
             "email": user_data.email,
@@ -106,15 +113,25 @@ async def register(user_data: UserRegister, request: Request):
         }
         
         # Save user to storage
-        user_storage.save_user(new_user)
+        save_result = user_storage.save_user(new_user)
+        if not save_result:
+            logging_service.error(request, f"Failed to save user data for {user_data.email}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save user data"
+            )
         
         # Generate verification token (24 hour expiration)
         token = create_token({"email": user_data.email, "type": "verification"}, 1440)
         
         # Send verification email
-        await send_verification_email(user_data.email, token)
+        email_sent = await send_verification_email(user_data.email, token)
+        if not email_sent and settings.ENV != "development":
+            logging_service.warning(request, f"Failed to send verification email to {user_data.email}")
+            # In production, this might be a critical error
+            # For now, we'll continue with registration but warn the user
         
-        logger.info(f"New user registered: {user_data.email}")
+        logging_service.success(request, f"New user registered successfully: {user_data.email}")
         
         return {
             "email": user_data.email, 
@@ -124,45 +141,70 @@ async def register(user_data: UserRegister, request: Request):
             "message": "Registration successful. Please check your email for verification."
         }
     except ValidationError as e:
-        logger.error(f"Validation error during registration: {e}")
+        logging_service.error(request, f"Validation error during registration: {e}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(e)
         )
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
-        logger.error(f"Error during registration: {e}")
+        # Capture and log the complete traceback
+        logging_service.error(request, f"Error during registration: {str(e)}")
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred during registration"
         )
 
 @router.get("/verify", response_class=HTMLResponse)
-async def verify(token: str = Query(...)):
+async def verify(token: str = Query(...), request: Request = None):
     try:
         payload = verify_token(token)
         
         # Check for token errors
         if "error" in payload:
+            if request:
+                logging_service.warning(request, f"Token verification failed: {payload['error']}")
+            logger.warning(f"Token verification failed: {payload['error']}")
             return HTMLResponse(f"<h1>Verification failed</h1><p>{payload['error']}</p>", status_code=400)
         
         # Verify token type
         if payload.get("type") != "verification":
+            if request:
+                logging_service.warning(request, f"Invalid token type: {payload.get('type')}")
+            logger.warning(f"Invalid token type: {payload.get('type')}")
             return HTMLResponse("<h1>Invalid verification token</h1>", status_code=400)
             
         email = payload.get("email")
         if not email:
+            if request:
+                logging_service.warning(request, "Missing email in verification token")
+            logger.warning("Missing email in verification token")
             return HTMLResponse("<h1>Invalid verification link</h1>", status_code=400)
         
         # Get user from storage
         user = user_storage.get_user_by_email(email)
         if not user:
+            if request:
+                logging_service.warning(request, f"User not found during verification: {email}")
+            logger.warning(f"User not found during verification: {email}")
             return HTMLResponse("<h1>User not found</h1>", status_code=404)
         
         # Update user verification status
         user["verified"] = True
         user["verified_at"] = time.time()
-        user_storage.update_user(user)
+        update_result = user_storage.update_user(user)
         
+        if not update_result:
+            if request:
+                logging_service.error(request, f"Failed to update user verification status: {email}")
+            logger.error(f"Failed to update user verification status: {email}")
+            return HTMLResponse("<h1>Verification failed</h1><p>Failed to update user status.</p>", status_code=500)
+        
+        if request:
+            logging_service.success(request, f"User verified: {email}")
         logger.info(f"User verified: {email}")
         
         return """
@@ -184,7 +226,10 @@ async def verify(token: str = Query(...)):
         </html>
         """
     except Exception as e:
-        logger.error(f"Email verification error: {e}")
+        if request:
+            logging_service.error(request, f"Email verification error: {str(e)}")
+        logger.error(f"Email verification error: {str(e)}")
+        logger.error(traceback.format_exc())
         return HTMLResponse(f"<h1>Verification failed</h1><p>An error occurred during verification</p>", status_code=400)
 
 @router.post("/login", response_model=UserResponse)
@@ -194,36 +239,48 @@ async def login(user_data: UserLogin, request: Request):
     
     # Check rate limiting for login attempts
     if not check_rate_limit(client_ip, "login", 5, 300):  # 5 login attempts per 5 minutes
-        logger.warning(f"Rate limit exceeded for login from {client_ip}")
+        logging_service.warning(request, f"Rate limit exceeded for login from {client_ip}")
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many login attempts. Please try again later."
         )
 
     try:
+        logging_service.info(request, f"Login attempt for: {user_data.email}")
+        
         # Get user from storage
         user = user_storage.get_user_by_email(user_data.email)
         if not user:
             # Use same error message for security (don't reveal if email exists)
+            logging_service.warning(request, f"Login failed - user not found: {user_data.email}")
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
         
         # Check if user is verified
         if not user.get("verified", False):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Please verify your email before logging in")
+            logging_service.warning(request, f"Login failed - user not verified: {user_data.email}")
+            # Create a more detailed message in the login response
+            token = create_token({"email": user_data.email, "type": "verification"}, 1440)  # 24 hours
+            await send_verification_email(user_data.email, token)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="Email not verified. We've sent a new verification email to your address."
+            )
         
         # Verify password
         if not verify_password(user_data.password, user["password"]):
-            logger.warning(f"Failed login attempt for {user_data.email} from {client_ip}")
+            logging_service.warning(request, f"Login failed - invalid password for {user_data.email} from {client_ip}")
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
         
         # Update last login timestamp
         user["last_login"] = time.time()
-        user_storage.update_user(user)
+        update_result = user_storage.update_user(user)
+        if not update_result:
+            logging_service.error(request, f"Failed to update last login time for user: {user_data.email}")
         
         # Generate access token (default expiration)
         token = create_token({"sub": user_data.email})
         
-        logger.info(f"User logged in: {user_data.email}")
+        logging_service.success(request, f"User logged in successfully: {user_data.email}")
         
         return {
             "email": user_data.email,
@@ -237,18 +294,21 @@ async def login(user_data: UserLogin, request: Request):
         # Re-raise HTTP exceptions
         raise
     except Exception as e:
-        logger.error(f"Login error: {e}")
+        logging_service.error(request, f"Login error: {str(e)}")
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred during login"
         )
 
 @router.get("/status")
-async def check_login_status(token: str = Query(None)):
+async def check_login_status(token: str = Query(None), request: Request = None):
     """
     Check if a user is logged in by validating their token
     """
     if not token:
+        if request:
+            logging_service.info(request, "Status check - no token provided")
         return {"is_logged_in": False}
     
     try:
@@ -256,15 +316,24 @@ async def check_login_status(token: str = Query(None)):
         
         # Check for token errors
         if "error" in payload:
+            if request:
+                logging_service.info(request, f"Status check failed - token error: {payload['error']}")
             return {"is_logged_in": False, "error": payload["error"]}
         
         email = payload.get("sub")
         if not email:
+            if request:
+                logging_service.info(request, "Status check failed - no email in token")
             return {"is_logged_in": False}
         
         user = user_storage.get_user_by_email(email)
         if not user or not user.get("verified", False):
+            if request:
+                logging_service.info(request, f"Status check failed - user not found or not verified: {email}")
             return {"is_logged_in": False}
+        
+        if request:
+            logging_service.info(request, f"Status check successful for user: {email}")
         
         return {
             "is_logged_in": True,
@@ -272,17 +341,22 @@ async def check_login_status(token: str = Query(None)):
             "full_name": user.get("full_name")
         }
     except Exception as e:
-        logger.error(f"Status check error: {e}")
+        if request:
+            logging_service.error(request, f"Status check error: {str(e)}")
+        logger.error(f"Status check error: {str(e)}")
+        logger.error(traceback.format_exc())
         return {"is_logged_in": False, "error": "Token verification failed"}
 
 @router.post("/logout")
-async def logout():
+async def logout(request: Request = None):
     """
     No server-side logout is needed for JWT tokens,
     but we provide this endpoint for front-end consistency
     
     In a production system, we could implement token revocation with a blacklist
     """
+    if request:
+        logging_service.info(request, "User logged out")
     return {"message": "Logged out successfully"}
 
 @router.post("/change-password")
@@ -290,6 +364,7 @@ async def change_password(
     current_password: str, 
     new_password: str,
     token: str = Query(...),
+    request: Request = None,
 ):
     """
     Change user password with verification of current password
@@ -300,6 +375,8 @@ async def change_password(
         
         # Check for token errors
         if "error" in payload:
+            if request:
+                logging_service.warning(request, f"Password change failed - token error: {payload['error']}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, 
                 detail=f"Authentication failed: {payload['error']}"
@@ -307,14 +384,21 @@ async def change_password(
         
         email = payload.get("sub")
         if not email:
+            if request:
+                logging_service.warning(request, "Password change failed - no email in token")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, 
                 detail="Invalid authentication token"
             )
         
+        if request:
+            logging_service.info(request, f"Password change attempt for user: {email}")
+        
         # Get user
         user = user_storage.get_user_by_email(email)
         if not user:
+            if request:
+                logging_service.warning(request, f"Password change failed - user not found: {email}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, 
                 detail="User not found"
@@ -322,6 +406,8 @@ async def change_password(
         
         # Verify current password
         if not verify_password(current_password, user["password"]):
+            if request:
+                logging_service.warning(request, f"Password change failed - incorrect current password: {email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, 
                 detail="Current password is incorrect"
@@ -329,6 +415,8 @@ async def change_password(
         
         # Validate new password strength
         if not validate_password_strength(new_password):
+            if request:
+                logging_service.warning(request, f"Password change failed - weak new password: {email}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters"
@@ -337,16 +425,28 @@ async def change_password(
         # Update password
         user["password"] = hash_password(new_password)
         user["password_changed_at"] = time.time()
-        user_storage.update_user(user)
+        update_result = user_storage.update_user(user)
         
-        logger.info(f"Password changed for user: {email}")
+        if not update_result:
+            if request:
+                logging_service.error(request, f"Failed to save new password for user: {email}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update password"
+            )
+        
+        if request:
+            logging_service.success(request, f"Password changed successfully for user: {email}")
         
         return {"message": "Password changed successfully"}
     except HTTPException:
         # Re-raise HTTP exceptions
         raise
     except Exception as e:
-        logger.error(f"Change password error: {e}")
+        if request:
+            logging_service.error(request, f"Change password error: {str(e)}")
+        logger.error(f"Change password error: {str(e)}")
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while changing password"
