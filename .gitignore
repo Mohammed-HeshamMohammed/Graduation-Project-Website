@@ -12,3 +12,5 @@ Backend/FastAPI/app/routes/__pycache__/
 Backend/FastAPI/app/services/__pycache__/
 
 .vscode/
+
+Backend/FastAPI/app/data/
