@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { AuthForm } from "@/components/auth-form";
-import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { User, LogIn } from "lucide-react";
 import { motion } from "framer-motion";
@@ -15,6 +14,7 @@ interface AuthModalProps {
   defaultTab?: "login" | "register";
   className?: string;
   useAvatar?: boolean;
+  onLoginSuccess?: () => void;
 }
 
 export function AuthModal({
@@ -23,9 +23,22 @@ export function AuthModal({
   defaultTab = "login",
   className,
   useAvatar = false,
+  onLoginSuccess,
 }: AuthModalProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const router = useRouter();
+
+  const handleAuthSuccess = (userData: any) => {
+    // Just close the modal and notify the parent component
+    setIsOpen(false);
+    
+    // Trigger a custom event to let other components know the login state changed
+    const event = new Event('loginStateChanged');
+    window.dispatchEvent(event);
+    
+    if (onLoginSuccess) {
+      onLoginSuccess();
+    }
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -57,17 +70,13 @@ export function AuthModal({
         <div className="py-4 overflow-y-auto max-h-[calc(100vh-12rem)]">
           <AuthForm
             defaultTab={defaultTab}
-            onSuccess={(userData) => {
-              setIsOpen(false);
-              // Redirect or update state as needed:
-              // router.push("/dashboard")
-            }}
+            onSuccess={handleAuthSuccess}
           />
         </div>
         <div className="absolute bottom-4 left-6 right-6">
           <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
             <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-            Secured by TruckTrust™ Technology
+            Secured by Trucking™ Technology
           </div>
         </div>
       </SheetContent>

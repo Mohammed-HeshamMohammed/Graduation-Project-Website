@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -11,20 +11,48 @@ import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, Mail, User, Building, MapPin, Lock, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
-import { supabase } from "@/lib/supabase";
+
+// Define API URLs
+const API_BASE_URL = "http://localhost:8000/api";
+const LOGIN_URL = `${API_BASE_URL}/login`;
+const REGISTER_URL = `${API_BASE_URL}/register`;
+const STATUS_URL = `${API_BASE_URL}/status`;
+const LOGOUT_URL = `${API_BASE_URL}/logout`;
+
+// Password validation - match backend requirements
+const passwordRegex = {
+  uppercase: /[A-Z]/,
+  lowercase: /[a-z]/,
+  number: /[0-9]/,
+  special: /[!@#$%^&*(),.?":{}|<>]/,
+};
 
 // Define form schemas
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
 });
 
 const registerSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters" }),
+  full_name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
-  companyName: z.string().min(2, { message: "Company name must be at least 2 characters" }),
-  companyAddress: z.string().min(5, { message: "Address must be at least 5 characters" }),
+  password: z
+    .string()
+    .min(8, { message: "Password must be at least 8 characters" })
+    .refine((value) => passwordRegex.uppercase.test(value), {
+      message: "Password must include at least one uppercase letter",
+    })
+    .refine((value) => passwordRegex.lowercase.test(value), {
+      message: "Password must include at least one lowercase letter",
+    })
+    .refine((value) => passwordRegex.number.test(value), {
+      message: "Password must include at least one number",
+    })
+    .refine((value) => passwordRegex.special.test(value), {
+      message: "Password must include at least one special character",
+    }),
+  company_name: z.string().min(2, { message: "Company name must be at least 2 characters" }),
+  company_address: z.string().min(5, { message: "Address must be at least 5 characters" }),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -36,22 +64,24 @@ interface AuthFormProps {
 }
 
 // Helper function to calculate password strength
-function calculatePasswordStrength(password: string): { label: string; color: string } {
+function calculatePasswordStrength(password: string): { label: string; color: string; strength: number } {
   let score = 0;
-  if (password.length >= 6) score++;
-  if (/[A-Z]/.test(password)) score++;
-  if (/[a-z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
-  if (/[^A-Za-z0-9]/.test(password)) score++;
+  if (password.length >= 8) score++;
+  if (passwordRegex.uppercase.test(password)) score++;
+  if (passwordRegex.lowercase.test(password)) score++;
+  if (passwordRegex.number.test(password)) score++;
+  if (passwordRegex.special.test(password)) score++;
 
-  if (score <= 2) return { label: "Weak", color: "text-red-600" };
-  if (score <= 4) return { label: "Medium", color: "text-yellow-600" };
-  return { label: "Strong", color: "text-green-600" };
+  if (score <= 2) return { label: "Weak", color: "text-red-600", strength: score };
+  if (score <= 4) return { label: "Medium", color: "text-yellow-600", strength: score };
+  return { label: "Strong", color: "text-green-600", strength: score };
 }
 
 export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const { toast } = useToast();
 
   // Login form
@@ -67,76 +97,170 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
   const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      name: "",
+      full_name: "",
       email: "",
       password: "",
-      companyName: "",
-      companyAddress: "",
+      company_name: "",
+      company_address: "",
     },
   });
+
+  // Check if user is already logged in on component mount
+  useEffect(() => {
+    const checkLoginStatus = async () => {
+      try {
+        const token = localStorage.getItem("authToken");
+        if (!token) {
+          setIsCheckingStatus(false);
+          return;
+        }
+
+        const response = await fetch(`${STATUS_URL}?token=${token}`);
+        const data = await response.json();
+
+        if (data.is_logged_in) {
+          onSuccess({
+            email: data.email,
+            name: data.full_name,
+            token: token,
+            verified: true,
+          });
+        }
+      } catch (error) {
+        console.error("Error checking login status:", error);
+      } finally {
+        setIsCheckingStatus(false);
+      }
+    };
+
+    checkLoginStatus();
+  }, [onSuccess]);
 
   // Watch the password field to update the strength indicator
   const passwordValue = registerForm.watch("password");
   const strength = calculatePasswordStrength(passwordValue || "");
 
-  // Login function using Supabase's dedicated API schema/connection
+  // Login function
   async function onLoginSubmit(data: LoginFormValues) {
-    const { data: authData, error } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
-    if (error) {
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch(LOGIN_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      
+      const responseData = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(responseData.detail || "Login failed");
+      }
+      
+      // Store token in localStorage
+      if (responseData.token) {
+        localStorage.setItem("authToken", responseData.token);
+      }
+      
+      toast({
+        title: "Login successful",
+        description: responseData.message || "Welcome back!",
+        duration: 3000,
+      });
+      
+      onSuccess({
+        email: responseData.email,
+        name: responseData.full_name,
+        token: responseData.token,
+        verified: responseData.verified,
+      });
+    } catch (error: any) {
       toast({
         title: "Login failed",
-        description: error.message,
+        description: error.message || "Please check your credentials and try again",
         variant: "destructive",
         duration: 5000,
       });
-      return;
+    } finally {
+      setIsLoading(false);
     }
-    localStorage.setItem("user", JSON.stringify(authData.user));
-    toast({
-      title: "Login successful",
-      description: "Welcome back!",
-      duration: 3000,
-    });
-    onSuccess(authData.user);
   }
 
-  // Registration function using Supabase's dedicated API schema/connection
+  // Registration function
   async function onRegisterSubmit(data: RegisterFormValues) {
-    const { data: authData, error } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: {
-        data: {
-          name: data.name,
-          companyName: data.companyName,
-          companyAddress: data.companyAddress,
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch(REGISTER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      },
-    });
-    if (error) {
+        body: JSON.stringify(data),
+      });
+      
+      const responseData = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(responseData.detail || "Registration failed");
+      }
+      
+      toast({
+        title: "Registration successful",
+        description: "Please check your email to verify your account before logging in.",
+        duration: 5000,
+      });
+      
+      // Switch to login tab after successful registration
+      setActiveTab("login");
+    } catch (error: any) {
       toast({
         title: "Registration failed",
-        description: error.message,
+        description: error.message || "Please check your information and try again",
         variant: "destructive",
         duration: 5000,
       });
-      return;
+    } finally {
+      setIsLoading(false);
     }
-    toast({
-      title: "Registration successful",
-      description: "Check your email for a verification link.",
-      duration: 3000,
-    });
-    onSuccess(authData.user);
   }
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await fetch(LOGOUT_URL, {
+        method: "POST",
+      });
+      
+      // Remove token from localStorage
+      localStorage.removeItem("authToken");
+      
+      toast({
+        title: "Logged out",
+        description: "You have been logged out successfully",
+        duration: 3000,
+      });
+      
+      // Redirect to login page or update UI as needed
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
   const formVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
   };
+
+  if (isCheckingStatus) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -179,7 +303,7 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
                       <FormControl>
                         <div className="relative">
                           <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                          <Input type={showPassword ? "text" : "password"} placeholder="******" className="pl-10" {...field} />
+                          <Input type={showPassword ? "text" : "password"} placeholder="••••••••" className="pl-10" {...field} />
                           <Button
                             type="button"
                             variant="ghost"
@@ -200,8 +324,8 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
                     Forgot Password?
                   </Button>
                 </div>
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loginForm.formState.isSubmitting}>
-                  {loginForm.formState.isSubmitting ? (
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+                  {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Logging in...
@@ -222,7 +346,7 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
                 <div className="grid grid-cols-1 gap-4">
                   <FormField
                     control={registerForm.control}
-                    name="name"
+                    name="full_name"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Full Name</FormLabel>
@@ -261,7 +385,7 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
                         <FormControl>
                           <div className="relative">
                             <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                            <Input type={showPassword ? "text" : "password"} placeholder="******" className="pl-10" {...field} />
+                            <Input type={showPassword ? "text" : "password"} placeholder="••••••••" className="pl-10" {...field} />
                             <Button
                               type="button"
                               variant="ghost"
@@ -275,8 +399,26 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
                         </FormControl>
                         <FormMessage />
                         {passwordValue && (
-                          <div className={`mt-1 text-sm ${strength.color}`}>
-                            Password strength: {strength.label}
+                          <div>
+                            <div className={`mt-1 text-sm ${strength.color}`}>
+                              Password strength: {strength.label}
+                            </div>
+                            <div className="mt-2 flex gap-1 h-1">
+                              {[1, 2, 3, 4, 5].map((index) => (
+                                <div 
+                                  key={index}
+                                  className={`h-full flex-1 rounded-full ${
+                                    index <= strength.strength 
+                                      ? index <= 2 
+                                        ? "bg-red-500" 
+                                        : index <= 4 
+                                          ? "bg-yellow-500" 
+                                          : "bg-green-500"
+                                      : "bg-gray-200"
+                                  }`}
+                                />
+                              ))}
+                            </div>
                           </div>
                         )}
                       </FormItem>
@@ -284,7 +426,7 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
                   />
                   <FormField
                     control={registerForm.control}
-                    name="companyName"
+                    name="company_name"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Company Name</FormLabel>
@@ -300,7 +442,7 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
                   />
                   <FormField
                     control={registerForm.control}
-                    name="companyAddress"
+                    name="company_address"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Company Address</FormLabel>
@@ -315,8 +457,8 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
                     )}
                   />
                 </div>
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 mt-2" disabled={registerForm.formState.isSubmitting}>
-                  {registerForm.formState.isSubmitting ? (
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 mt-2" disabled={isLoading}>
+                  {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Creating account...
