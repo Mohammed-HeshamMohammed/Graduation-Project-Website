@@ -44,138 +44,194 @@ app.include_router(fleet.router, prefix="/api/fleet", tags=["Fleet Management"])
 @app.get("/", response_class=HTMLResponse)
 def root():
     return """
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title>Authentication API</title>
-        <style>
-            body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background: #f2f4f8;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                padding: 40px;
-                min-height: 100vh;
-            }
-            .container {
-                background: #fff;
-                padding: 30px 40px;
-                border-radius: 12px;
-                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-                max-width: 700px;
-                width: 100%;
-            }
-            h1 {
-                text-align: center;
-                color: #2c3e50;
-                margin-bottom: 10px;
-            }
-            p.description {
-                text-align: center;
-                color: #555;
-                margin-bottom: 30px;
-            }
-            .endpoint {
-                background: #f9fafc;
-                padding: 15px 20px;
-                border-left: 5px solid #3498db;
-                margin: 15px 0;
-                border-radius: 6px;
-            }
-            .endpoint strong {
-                display: block;
-                font-size: 15px;
-                color: #2d3436;
-                margin-bottom: 6px;
-            }
-            .endpoint p {
-                margin: 0;
-                font-size: 14px;
-                color: #555;
-            }
-            code {
-                background: #e8eef3;
-                padding: 2px 6px;
-                border-radius: 4px;
-                font-size: 13px;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Secure Authentication API</h1>
-            <p class="description">Available endpoints for user and fleet management</p>
-
-            <div class="endpoint">
-                <strong>POST <code>/api/register</code></strong>
-                <p>Register a new user with email, password, full name, company name and address</p>
+<html lang="en">
+<body>
+    <div class="container content">
+        <div class="card">
+            <div class="card-header">
+                <div class="icon auth-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                </div>
+                <h2>Authentication Endpoints</h2>
             </div>
-            <div class="endpoint">
-                <strong>GET <code>/api/verify</code></strong>
-                <p>Verify email using token from email link</p>
-            </div>
-            <div class="endpoint">
-                <strong>POST <code>/api/login</code></strong>
-                <p>Login with email and password (only works after verification)</p>
-            </div>
-            <div class="endpoint">
-                <strong>GET <code>/api/status</code></strong>
-                <p>Check if a user is currently logged in (using their token)</p>
-            </div>
-            <div class="endpoint">
-                <strong>POST <code>/api/logout</code></strong>
-                <p>Logout a user (frontend will need to delete the token)</p>
-            </div>
-            <div class="endpoint">
-                <strong>POST <code>/api/change-password</code></strong>
-                <p>Change the user's password (requires current password and authentication)</p>
-            </div>
-
-            <div class="endpoint">
-                <strong>POST <code>/api/fleet/vehicles</code></strong>
-                <p>Create a new vehicle</p>
-            </div>
-            <div class="endpoint">
-                <strong>GET <code>/api/fleet/vehicles</code></strong>
-                <p>Get all vehicles for the logged-in user</p>
-            </div>
-            <div class="endpoint">
-                <strong>GET <code>/api/fleet/vehicles/{vehicle_id}</code></strong>
-                <p>Get a specific vehicle by ID</p>
-            </div>
-            <div class="endpoint">
-                <strong>PUT <code>/api/fleet/vehicles/{vehicle_id}</code></strong>
-                <p>Update an existing vehicle</p>
-            </div>
-            <div class="endpoint">
-                <strong>DELETE <code>/api/fleet/vehicles/{vehicle_id}</code></strong>
-                <p>Delete a vehicle</p>
-            </div>
-
-            <div class="endpoint">
-                <strong>POST <code>/api/fleet/drivers</code></strong>
-                <p>Create a new driver</p>
-            </div>
-            <div class="endpoint">
-                <strong>GET <code>/api/fleet/drivers</code></strong>
-                <p>Get all drivers for the logged-in user</p>
-            </div>
-            <div class="endpoint">
-                <strong>GET <code>/api/fleet/drivers/{driver_id}</code></strong>
-                <p>Get a specific driver by ID</p>
-            </div>
-            <div class="endpoint">
-                <strong>PUT <code>/api/fleet/drivers/{driver_id}</code></strong>
-                <p>Update an existing driver</p>
-            </div>
-            <div class="endpoint">
-                <strong>DELETE <code>/api/fleet/drivers/{driver_id}</code></strong>
-                <p>Delete a driver</p>
+            <div class="card-body">
+                <div class="endpoints">
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method post">POST</span>
+                            <code class="endpoint-path">/api/register</code>
+                        </div>
+                        <p class="endpoint-desc">Register a new user with email, password, full name, company name and address</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method get">GET</span>
+                            <code class="endpoint-path">/api/verify</code>
+                        </div>
+                        <p class="endpoint-desc">Verify email using token from email link</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method post">POST</span>
+                            <code class="endpoint-path">/api/login</code>
+                        </div>
+                        <p class="endpoint-desc">Login with email and password (only works after verification)</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method get">GET</span>
+                            <code class="endpoint-path">/api/status</code>
+                        </div>
+                        <p class="endpoint-desc">Check if a user is currently logged in (using their token)</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method post">POST</span>
+                            <code class="endpoint-path">/api/logout</code>
+                        </div>
+                        <p class="endpoint-desc">Logout a user (frontend will need to delete the token)</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method post">POST</span>
+                            <code class="endpoint-path">/api/change-password</code>
+                        </div>
+                        <p class="endpoint-desc">Change the user's password (requires current password and authentication)</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method post">POST</span>
+                            <code class="endpoint-path">/api/forgot-password</code>
+                        </div>
+                        <p class="endpoint-desc">Request a password reset link to be sent to your email</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method get">GET</span>
+                            <code class="endpoint-path">/api/reset-password</code>
+                        </div>
+                        <p class="endpoint-desc">Form to reset password (accessed via email link with token)</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method post">POST</span>
+                            <code class="endpoint-path">/api/reset-password-confirm</code>
+                        </div>
+                        <p class="endpoint-desc">Process the password reset request with new password</p>
+                    </div>
+                </div>
             </div>
         </div>
-    </body>
-    </html>
+        
+        <div class="card">
+            <div class="card-header">
+                <div class="icon fleet-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path>
+                        <circle cx="7" cy="17" r="2"></circle>
+                        <circle cx="17" cy="17" r="2"></circle>
+                    </svg>
+                </div>
+                <h2>Fleet Management Endpoints</h2>
+            </div>
+            <div class="card-body">
+                <div class="endpoints fleet">
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method post">POST</span>
+                            <code class="endpoint-path">/api/fleet/vehicles</code>
+                        </div>
+                        <p class="endpoint-desc">Create a new vehicle</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method get">GET</span>
+                            <code class="endpoint-path">/api/fleet/vehicles</code>
+                        </div>
+                        <p class="endpoint-desc">Get all vehicles for the logged-in user</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method get">GET</span>
+                            <code class="endpoint-path">/api/fleet/vehicles/{vehicle_id}</code>
+                        </div>
+                        <p class="endpoint-desc">Get a specific vehicle by ID</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method put">PUT</span>
+                            <code class="endpoint-path">/api/fleet/vehicles/{vehicle_id}</code>
+                        </div>
+                        <p class="endpoint-desc">Update an existing vehicle</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method delete">DELETE</span>
+                            <code class="endpoint-path">/api/fleet/vehicles/{vehicle_id}</code>
+                        </div>
+                        <p class="endpoint-desc">Delete a vehicle</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method post">POST</span>
+                            <code class="endpoint-path">/api/fleet/drivers</code>
+                        </div>
+                        <p class="endpoint-desc">Create a new driver</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method get">GET</span>
+                            <code class="endpoint-path">/api/fleet/drivers</code>
+                        </div>
+                        <p class="endpoint-desc">Get all drivers for the logged-in user</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method get">GET</span>
+                            <code class="endpoint-path">/api/fleet/drivers/{driver_id}</code>
+                        </div>
+                        <p class="endpoint-desc">Get a specific driver by ID</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method put">PUT</span>
+                            <code class="endpoint-path">/api/fleet/drivers/{driver_id}</code>
+                        </div>
+                        <p class="endpoint-desc">Update an existing driver</p>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="http-method delete">DELETE</span>
+                            <code class="endpoint-path">/api/fleet/drivers/{driver_id}</code>
+                        </div>
+                        <p class="endpoint-desc">Delete a driver</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
     """
 
 if __name__ == "__main__":

@@ -1,11 +1,13 @@
 # app/routes/auth.py
-from fastapi import APIRouter, HTTPException, Request, Response, Depends, Query, status
+from fastapi import APIRouter, HTTPException, Request, Response, Depends, Query, Form, status
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from typing import Optional
 import time
 import logging
 import traceback
 from pydantic import ValidationError
+import uuid
+
 
 # Use relative imports for better compatibility
 from app.models.user_models import UserRegister, UserLogin, UserResponse
@@ -359,6 +361,297 @@ async def logout(request: Request = None):
         logging_service.info(request, "User logged out")
     return {"message": "Logged out successfully"}
 
+# app/routes/auth.py - Add these new routes and modify existing ones
+
+# New imports needed
+from fastapi import BackgroundTasks
+import uuid
+
+# Add these routes to the auth.py file
+
+@router.post("/forgot-password")
+async def forgot_password(
+    email: str,
+    request: Request,
+    background_tasks: BackgroundTasks
+):
+    """
+    Send password reset link to user's email
+    """
+    # Get client IP for rate limiting
+    client_ip = request.client.host
+    
+    # Check rate limiting for password reset requests
+    if not check_rate_limit(client_ip, "forgot_password", 3, 300):  # 3 requests per 5 minutes
+        logging_service.warning(request, f"Rate limit exceeded for password reset from {client_ip}")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many password reset attempts. Please try again later."
+        )
+    
+    try:
+        logging_service.info(request, f"Password reset request for email: {email}")
+        
+        # Get user from storage
+        user = user_storage.get_user_by_email(email)
+        if not user:
+            # For security reasons, don't reveal if email exists
+            logging_service.info(request, f"Password reset for non-existent email: {email}")
+            return {"message": "If your email is registered, you will receive a password reset link"}
+        
+        # Check if user is verified
+        if not user.get("verified", False):
+            logging_service.info(request, f"Password reset for unverified email: {email}")
+            # Send verification email instead
+            token = create_token({"email": email, "type": "verification"}, 1440)  # 24 hours
+            await send_verification_email(email, token)
+            return {"message": "Your account is not verified. A verification email has been sent instead."}
+        
+        # Generate password reset token (valid for 1 hour)
+        reset_token = create_token({"email": email, "type": "password_reset"}, 60)
+        
+        # Send password reset email
+        background_tasks.add_task(send_password_reset_email, email, reset_token)
+        
+        logging_service.success(request, f"Password reset email sent to: {email}")
+        return {"message": "If your email is registered, you will receive a password reset link"}
+    
+    except Exception as e:
+        logging_service.error(request, f"Password reset error: {str(e)}")
+        logger.error(traceback.format_exc())
+        # Return generic message to avoid revealing if email exists
+        return {"message": "If your email is registered, you will receive a password reset link"}
+
+@router.get("/reset-password", response_class=HTMLResponse)
+async def reset_password_form(token: str = Query(...), request: Request = None):
+    """
+    Display password reset form for valid tokens
+    """
+    try:
+        # Verify token
+        payload = verify_token(token)
+        
+        # Check for token errors
+        if "error" in payload:
+            if request:
+                logging_service.warning(request, f"Password reset form - token error: {payload['error']}")
+            return HTMLResponse(f"<h1>Password Reset Failed</h1><p>{payload['error']}</p>", status_code=400)
+        
+        # Verify token type
+        if payload.get("type") != "password_reset":
+            if request:
+                logging_service.warning(request, f"Invalid token type for password reset: {payload.get('type')}")
+            return HTMLResponse("<h1>Invalid password reset token</h1>", status_code=400)
+        
+        email = payload.get("email")
+        if not email:
+            if request:
+                logging_service.warning(request, "Missing email in password reset token")
+            return HTMLResponse("<h1>Invalid password reset link</h1>", status_code=400)
+        
+        # Get user from storage
+        user = user_storage.get_user_by_email(email)
+        if not user:
+            if request:
+                logging_service.warning(request, f"Password reset - user not found: {email}")
+            return HTMLResponse("<h1>User not found</h1>", status_code=404)
+        
+        # Form to reset password
+        return f"""
+        <html>
+            <head>
+                <title>Reset Password</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }}
+                    h1 {{ color: #2c3e50; }}
+                    .form-group {{ margin-bottom: 15px; }}
+                    label {{ display: block; margin-bottom: 5px; font-weight: bold; }}
+                    input {{ width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }}
+                    button {{ background: #3498db; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }}
+                    .password-requirements {{ background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 0.9em; }}
+                    .error {{ color: red; display: none; margin-top: 5px; }}
+                </style>
+            </head>
+            <body>
+                <h1>Reset Your Password</h1>
+                <form id="resetForm" method="POST" action="/api/reset-password-confirm">
+                    <input type="hidden" name="token" value="{token}">
+                    <div class="form-group">
+                        <label for="new_password">New Password</label>
+                        <input type="password" id="new_password" name="new_password" required>
+                        <div class="error" id="password-error">Password must be at least 8 characters with uppercase, lowercase, numbers, and special characters</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm_password">Confirm Password</label>
+                        <input type="password" id="confirm_password" name="confirm_password" required>
+                        <div class="error" id="confirm-error">Passwords do not match</div>
+                    </div>
+                    <div class="password-requirements">
+                        Password must contain at least 8 characters including:
+                        <ul>
+                            <li>At least one uppercase letter</li>
+                            <li>At least one lowercase letter</li>
+                            <li>At least one number</li>
+                            <li>At least one special character (!@#$%^&*...)</li>
+                        </ul>
+                    </div>
+                    <button type="submit">Reset Password</button>
+                </form>
+                
+                <script>
+                    document.getElementById('resetForm').addEventListener('submit', function(e) {{
+                        const password = document.getElementById('new_password').value;
+                        const confirmPassword = document.getElementById('confirm_password').value;
+                        let valid = true;
+                        
+                        // Reset errors
+                        document.getElementById('password-error').style.display = 'none';
+                        document.getElementById('confirm-error').style.display = 'none';
+                        
+                        // Check password strength
+                        const hasUppercase = /[A-Z]/.test(password);
+                        const hasLowercase = /[a-z]/.test(password);
+                        const hasNumber = /[0-9]/.test(password);
+                        const hasSpecial = /[!@#$%^&*(),.?":{{}}|<>]/.test(password);
+                        
+                        if (password.length < 8 || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {{
+                            document.getElementById('password-error').style.display = 'block';
+                            valid = false;
+                        }}
+                        
+                        // Check password match
+                        if (password !== confirmPassword) {{
+                            document.getElementById('confirm-error').style.display = 'block';
+                            valid = false;
+                        }}
+                        
+                        if (!valid) {{
+                            e.preventDefault();
+                        }}
+                    }});
+                </script>
+            </body>
+        </html>
+        """
+    except Exception as e:
+        if request:
+            logging_service.error(request, f"Password reset form error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return HTMLResponse("<h1>Error Displaying Password Reset Form</h1>", status_code=500)
+
+@router.post("/reset-password-confirm", response_class=HTMLResponse)
+async def reset_password_confirm(
+    token: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    request: Request = None
+):
+    """
+    Process the password reset form submission
+    """
+    try:
+        # Verify passwords match
+        if new_password != confirm_password:
+            if request:
+                logging_service.warning(request, "Password reset failed - passwords don't match")
+            return HTMLResponse("<h1>Passwords do not match</h1>", status_code=400)
+        
+        # Verify password strength
+        if not validate_password_strength(new_password):
+            if request:
+                logging_service.warning(request, "Password reset failed - password too weak")
+            return HTMLResponse("<h1>Password does not meet strength requirements</h1>", status_code=400)
+        
+        # Verify token
+        payload = verify_token(token)
+        
+        # Check for token errors
+        if "error" in payload:
+            if request:
+                logging_service.warning(request, f"Password reset confirm - token error: {payload['error']}")
+            return HTMLResponse(f"<h1>Password Reset Failed</h1><p>{payload['error']}</p>", status_code=400)
+        
+        # Verify token type
+        if payload.get("type") != "password_reset":
+            if request:
+                logging_service.warning(request, f"Invalid token type for password reset: {payload.get('type')}")
+            return HTMLResponse("<h1>Invalid password reset token</h1>", status_code=400)
+        
+        email = payload.get("email")
+        if not email:
+            if request:
+                logging_service.warning(request, "Missing email in password reset token")
+            return HTMLResponse("<h1>Invalid password reset link</h1>", status_code=400)
+        
+        # Get user from storage
+        user = user_storage.get_user_by_email(email)
+        if not user:
+            if request:
+                logging_service.warning(request, f"Password reset - user not found: {email}")
+            return HTMLResponse("<h1>User not found</h1>", status_code=404)
+        
+        # Check if new password is the same as old password
+        if verify_password(new_password, user["password"]):
+            if request:
+                logging_service.warning(request, f"Password reset - new password same as old: {email}")
+            return HTMLResponse("<h1>New password cannot be the same as current password</h1>", status_code=400)
+        
+        # Check if password history exists and add the current password to it
+        if "password_history" not in user:
+            user["password_history"] = []
+        
+        # Add current password to history if it's not already there
+        if user["password"] not in user["password_history"]:
+            user["password_history"].append(user["password"])
+        
+        # Limit password history to last 5 passwords
+        user["password_history"] = user["password_history"][-5:]
+        
+        # Check if new password matches any password in history
+        for old_password_hash in user["password_history"]:
+            if verify_password(new_password, old_password_hash):
+                if request:
+                    logging_service.warning(request, f"Password reset - password found in history: {email}")
+                return HTMLResponse("<h1>New password cannot be the same as any of your previous 5 passwords</h1>", status_code=400)
+        
+        # Update password
+        user["password"] = hash_password(new_password)
+        user["password_changed_at"] = time.time()
+        update_result = user_storage.update_user(user)
+        
+        if not update_result:
+            if request:
+                logging_service.error(request, f"Failed to save new password for user: {email}")
+            return HTMLResponse("<h1>Failed to update password</h1>", status_code=500)
+        
+        if request:
+            logging_service.success(request, f"Password reset successful for user: {email}")
+        
+        return """
+        <html>
+            <head>
+                <title>Password Reset Success</title>
+                <style>
+                    body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; text-align: center; }
+                    h1 { color: #28a745; }
+                    p { margin: 20px 0; }
+                    .btn { background: #007bff; color: white; text-decoration: none; padding: 10px 20px; border-radius: 5px; display: inline-block; }
+                </style>
+            </head>
+            <body>
+                <h1>Password Reset Successful!</h1>
+                <p>Your password has been updated successfully.</p>
+                <a href="/" class="btn">Go to Login</a>
+            </body>
+        </html>
+        """
+    except Exception as e:
+        if request:
+            logging_service.error(request, f"Password reset confirm error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return HTMLResponse("<h1>Error Resetting Password</h1>", status_code=500)
+
+# Add this to change-password route to implement password history checking
 @router.post("/change-password")
 async def change_password(
     current_password: str, 
@@ -421,6 +714,36 @@ async def change_password(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters"
             )
+        
+        # Check if new password is the same as current password
+        if verify_password(new_password, user["password"]):
+            if request:
+                logging_service.warning(request, f"Password change failed - new password same as current: {email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="New password cannot be the same as current password"
+            )
+        
+        # Check if password history exists and add the current password to it
+        if "password_history" not in user:
+            user["password_history"] = []
+        
+        # Add current password to history if it's not already there
+        if user["password"] not in user["password_history"]:
+            user["password_history"].append(user["password"])
+        
+        # Limit password history to last 5 passwords
+        user["password_history"] = user["password_history"][-5:]
+        
+        # Check if new password matches any password in history
+        for old_password_hash in user["password_history"]:
+            if verify_password(new_password, old_password_hash):
+                if request:
+                    logging_service.warning(request, f"Password change failed - password found in history: {email}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="New password cannot be the same as any of your previous 5 passwords"
+                )
         
         # Update password
         user["password"] = hash_password(new_password)
