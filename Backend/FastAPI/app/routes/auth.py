@@ -13,11 +13,10 @@ import uuid
 from app.models.user_models import UserRegister, UserLogin, UserResponse
 from app.services.storage import UserStorage
 from app.services.crypto import encrypt_data, decrypt_data
-from app.services.email_utils import send_verification_email
+from app.services.email_utils import send_verification_email, send_password_reset_email
 from app.services.utils import hash_password, verify_password, create_token, verify_token, validate_password_strength
 from app.config import settings
 from app.services import logging_service
-
 # Configure logging
 logger = logging.getLogger(__name__)
 

@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { STATUS_URL } from "./auth/constants";
 import { LoginForm } from "./auth/LoginForm";
 import { RegisterForm } from "./auth/RegisterForm";
+import { ResetPasswordForm } from "./auth/ResetPasswordForm";
 
 interface AuthFormProps {
   onSuccess: (userData: any) => void;
@@ -18,7 +19,32 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [loginEmail, setLoginEmail] = useState("");
+  const [resetToken, setResetToken] = useState<string | null>(null);
+  const [showResetForm, setShowResetForm] = useState(false);
   const { toast } = useToast();
+
+  // Check for reset token in URL on component mount
+  useEffect(() => {
+    const checkForResetToken = () => {
+      // Check if we're in a browser environment
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get("reset_token");
+        
+        if (token) {
+          setResetToken(token);
+          setShowResetForm(true);
+          
+          // Clean up the URL by removing the token parameter
+          const url = new URL(window.location.href);
+          url.searchParams.delete("reset_token");
+          window.history.replaceState({}, document.title, url.toString());
+        }
+      }
+    };
+    
+    checkForResetToken();
+  }, []);
 
   // Check if user is already logged in on component mount
   useEffect(() => {
@@ -63,10 +89,30 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
     setActiveTab("login");
   };
 
+  // Handle successful password reset
+  const handleResetSuccess = () => {
+    setShowResetForm(false);
+    setActiveTab("login");
+    toast({
+      title: "Password Reset Complete",
+      description: "You can now log in with your new password.",
+      duration: 5000,
+    });
+  };
+
   if (isCheckingStatus) {
     return (
       <div className="flex justify-center items-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  // Show the reset password form if a token was detected
+  if (showResetForm && resetToken) {
+    return (
+      <div className="space-y-6">
+        <ResetPasswordForm token={resetToken} onSuccess={handleResetSuccess} />
       </div>
     );
   }
@@ -84,7 +130,7 @@ export function AuthForm({ onSuccess, defaultTab = "login" }: AuthFormProps) {
         </TabsList>
 
         <TabsContent value="login">
-          <LoginForm onSuccess={onSuccess} />
+          <LoginForm onSuccess={onSuccess} initialEmail={loginEmail} />
         </TabsContent>
 
         <TabsContent value="register">

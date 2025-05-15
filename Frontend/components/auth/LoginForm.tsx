@@ -6,27 +6,31 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Eye, EyeOff, Mail, Lock, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Loader2, AlertTriangle } from "lucide-react";
 import { LoginFormValues, loginSchema } from "./schemas";
 import { LOGIN_URL } from "./constants";
 import { handleApiError } from "./utils";
 import { VerificationAlert } from "./VerificationAlert";
 import { motion } from "framer-motion";
+import { ForgotPasswordForm } from "./ForgotPasswordForm";
 
 interface LoginFormProps {
   onSuccess: (userData: any) => void;
+  initialEmail?: string;
 }
 
-export function LoginForm({ onSuccess }: LoginFormProps) {
+export function LoginForm({ onSuccess, initialEmail = "" }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { toast } = useToast();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      email: initialEmail,
       password: "",
     },
   });
@@ -34,6 +38,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   async function onSubmit(data: LoginFormValues) {
     setIsLoading(true);
     setVerificationSent(false);
+    setErrorMessage(null);
     
     try {
       const response = await fetch(LOGIN_URL, {
@@ -47,10 +52,16 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       const responseData = await response.json();
       
       if (!response.ok) {
-        // Special case for unverified email
-        if (response.status === 401 && responseData.detail?.includes("not verified")) {
-          setVerificationSent(true);
-          throw new Error("Email not verified. A new verification email has been sent.");
+        // Handle specific error cases
+        if (response.status === 401) {
+          if (responseData.detail?.includes("not verified")) {
+            setVerificationSent(true);
+            throw new Error("Email not verified. A new verification email has been sent.");
+          } else if (responseData.detail?.includes("incorrect password")) {
+            throw new Error("Incorrect password. Please try again.");
+          } else if (responseData.detail?.includes("not found") || responseData.detail?.includes("does not exist")) {
+            throw new Error("Email address not found. Please check your email or register for an account.");
+          }
         }
         throw new Error(responseData.detail || "Login failed");
       }
@@ -77,11 +88,12 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       // Dispatch event to notify other components about login state change
       window.dispatchEvent(new Event("loginStateChanged"));
     } catch (error: any) {
-      const errorMessage = handleApiError(error, "Please check your credentials and try again");
+      const errorMsg = handleApiError(error, "Please check your credentials and try again");
+      setErrorMessage(errorMsg);
       
       toast({
         title: "Login failed",
-        description: errorMessage,
+        description: errorMsg,
         variant: "destructive",
         duration: 5000,
       });
@@ -95,9 +107,20 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
   };
 
+  if (showForgotPassword) {
+    return <ForgotPasswordForm onBack={() => setShowForgotPassword(false)} />;
+  }
+
   return (
     <motion.div variants={formVariants} initial="hidden" animate="visible">
       <VerificationAlert show={verificationSent} />
+      
+      {errorMessage && !verificationSent && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start space-x-2">
+          <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+          <span className="text-sm text-red-700">{errorMessage}</span>
+        </div>
+      )}
       
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -147,13 +170,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
               variant="link" 
               className="text-xs text-blue-600 hover:text-blue-800 p-0 h-auto" 
               type="button"
-              onClick={() => {
-                toast({
-                  title: "Reset Password",
-                  description: "Password reset functionality will be implemented soon. Please contact support for assistance.",
-                  duration: 5000,
-                });
-              }}
+              onClick={() => setShowForgotPassword(true)}
             >
               Forgot Password?
             </Button>
