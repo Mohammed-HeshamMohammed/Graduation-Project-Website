@@ -4,7 +4,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.config import settings
 import time
 import logging
-from app.services.logging_service import LoggingMiddleware
+from app.services.auth.logging_service import LoggingMiddleware
 
 logger = logging.getLogger(__name__)
 

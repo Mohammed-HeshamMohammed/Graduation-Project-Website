@@ -3,8 +3,8 @@ import os
 import json
 from pathlib import Path
 import logging
-from ..services.crypto import encrypt_data, decrypt_data
-from ..config import settings
+from app.services.crypto import encrypt_data, decrypt_data
+from app.config import settings
 
 # Configure logging
 logger = logging.getLogger(__name__)

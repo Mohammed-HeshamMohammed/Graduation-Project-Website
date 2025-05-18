@@ -12,7 +12,7 @@ from app.models.vehicle_driver_models import (
     DriverResponse
 )
 from app.services.fleet_storage import FleetStorage
-from app.services.utils import verify_token
+from app.services.auth.utils import verify_token
 from app.config import settings
 
 # Configure logging

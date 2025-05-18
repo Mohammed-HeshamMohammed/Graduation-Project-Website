@@ -2,7 +2,7 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from ..config import settings
+from app.config import settings
 import logging
 import traceback
 
@@ -54,20 +54,14 @@ async def send_verification_email(email: str, token: str):
     message.attach(part1)
     message.attach(part2)
     
-    # Always log the verification URL in development environment
-    if settings.ENV == "development":
-        logger.info(f"\n--- VERIFICATION EMAIL ---\nTo: {email}\nURL: {verification_url}\n--- END EMAIL ---\n")
-        # In development, we can "pretend" we sent the email
-        return True
+    # Always log the verification URL regardless of environment
+    logger.info(f"\n--- VERIFICATION EMAIL ---\nTo: {email}\nURL: {verification_url}\n--- END EMAIL ---\n")
     
-    # In production, try to send the email
+    # Try to send the email
     try:
         # Check if SMTP credentials are configured
         if not all([settings.SMTP_SERVER, settings.SMTP_USERNAME, settings.SMTP_PASSWORD]):
             logger.warning("SMTP credentials not configured properly. Email not sent.")
-            if settings.ENV == "development":
-                # In development, we pretend it was sent anyway
-                return True
             return False
             
         with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT) as server:
@@ -79,9 +73,6 @@ async def send_verification_email(email: str, token: str):
     except Exception as e:
         logger.error(f"Failed to send email: {str(e)}")
         logger.error(traceback.format_exc())
-        # In development, we'll consider it "sent" anyway
-        if settings.ENV == "development":
-            return True
         return False
       
       
@@ -135,20 +126,14 @@ async def send_password_reset_email(email: str, token: str):
     message.attach(part1)
     message.attach(part2)
     
-    # Always log the reset URL in development environment
-    if settings.ENV == "development":
-        logger.info(f"\n--- PASSWORD RESET EMAIL ---\nTo: {email}\nURL: {reset_url}\n--- END EMAIL ---\n")
-        # In development, we can "pretend" we sent the email
-        return True
+    # Always log the reset URL regardless of environment
+    logger.info(f"\n--- PASSWORD RESET EMAIL ---\nTo: {email}\nURL: {reset_url}\n--- END EMAIL ---\n")
     
-    # In production, try to send the email
+    # Try to send the email
     try:
         # Check if SMTP credentials are configured
         if not all([settings.SMTP_SERVER, settings.SMTP_USERNAME, settings.SMTP_PASSWORD]):
             logger.warning("SMTP credentials not configured properly. Email not sent.")
-            if settings.ENV == "development":
-                # In development, we pretend it was sent anyway
-                return True
             return False
             
         with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT) as server:
@@ -160,7 +145,4 @@ async def send_password_reset_email(email: str, token: str):
     except Exception as e:
         logger.error(f"Failed to send password reset email: {str(e)}")
         logger.error(traceback.format_exc())
-        # In development, we'll consider it "sent" anyway
-        if settings.ENV == "development":
-            return True
         return False

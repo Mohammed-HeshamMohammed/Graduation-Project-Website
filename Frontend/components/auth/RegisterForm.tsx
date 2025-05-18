@@ -6,12 +6,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Eye, EyeOff, Mail, User, Building, MapPin, Lock, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Mail, User, Building, MapPin, Lock, Loader2, AlertCircle } from "lucide-react";
 import { RegisterFormValues, registerSchema } from "./schemas";
 import { REGISTER_URL } from "./constants";
 import { handleApiError } from "./utils";
 import { PasswordStrengthIndicator } from "./PasswordStrengthIndicator";
 import { motion } from "framer-motion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface RegisterFormProps {
   onSuccess: (email: string) => void;
@@ -20,6 +21,9 @@ interface RegisterFormProps {
 export function RegisterForm({ onSuccess }: RegisterFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [emailVerificationInfo, setEmailVerificationInfo] = useState<string | null>(null);
+  const [companyError, setCompanyError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const form = useForm<RegisterFormValues>({
@@ -35,9 +39,21 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
 
   // Watch the password field to update the strength indicator
   const passwordValue = form.watch("password");
+  const emailValue = form.watch("email");
+  const companyNameValue = form.watch("company_name");
+
+  // Clear company error when company name changes
+  React.useEffect(() => {
+    if (companyError) {
+      setCompanyError(null);
+    }
+  }, [companyNameValue]);
 
   async function onSubmit(data: RegisterFormValues) {
     setIsLoading(true);
+    setVerificationSent(false);
+    setEmailVerificationInfo(null);
+    setCompanyError(null);
     
     try {
       const response = await fetch(REGISTER_URL, {
@@ -50,19 +66,56 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
       
       const responseData = await response.json();
       
+      // Handle different response cases
+      if (response.status === 409) {
+        // Email already registered and verified
+        toast({
+          title: "Email already registered",
+          description: "This email address is already in use. Please log in instead.",
+          variant: "destructive",
+          duration: 5000,
+        });
+        return;
+      }
+
+      // Handle company already registered case (403 Forbidden)
+      if (response.status === 403) {
+        setCompanyError(responseData.detail || "This company is already registered.");
+        toast({
+          title: "Company already registered",
+          description: responseData.detail || "This company is already registered. New users must be added by an existing team member.",
+          variant: "destructive",
+          duration: 5000,
+        });
+        return;
+      }
+      
       if (!response.ok) {
-        // Check for specific error cases
-        if (response.status === 409) {
-          throw new Error("This email is already registered. Please log in instead.");
-        }
         throw new Error(responseData.detail || "Registration failed");
       }
       
+      // Check if this is a resend verification situation
+      if (responseData.message?.includes("Verification email resent")) {
+        setVerificationSent(true);
+        setEmailVerificationInfo(data.email);
+        toast({
+          title: "Verification Email Resent",
+          description: `We've sent another verification email to ${data.email}. Please check your inbox.`,
+          duration: 5000,
+        });
+        return;
+      }
+      
+      // Normal successful registration
       toast({
         title: "Registration successful",
         description: "Please check your email to verify your account before logging in.",
         duration: 5000,
       });
+      
+      // Set verification status for UI feedback
+      setVerificationSent(true);
+      setEmailVerificationInfo(data.email);
       
       // Reset the register form
       form.reset();
@@ -90,6 +143,27 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
 
   return (
     <motion.div variants={formVariants} initial="hidden" animate="visible">
+      {verificationSent && emailVerificationInfo && (
+        <Alert className="mb-6 bg-white border-blue-700">
+          <AlertCircle className="h-4 w-4 text-blue-700" />
+          <AlertTitle className="text-blue-600">Verification Email Sent</AlertTitle>
+          <AlertDescription className="text-blue-700">
+            We've sent a verification email to <strong>{emailVerificationInfo}</strong>. 
+            Please check your inbox and click the verification link to complete your registration.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {companyError && (
+        <Alert className="mb-6 bg-red-600/50 border-amber-700">
+          <AlertCircle className="h-4 w-4 text-amber-700" />
+          <AlertTitle className="text-amber-600">Company Registration Restricted</AlertTitle>
+          <AlertDescription className="text-amber-700">
+            {companyError} Please contact your company administrator to add you as a team member.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 gap-4">
@@ -164,6 +238,11 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
                     </div>
                   </FormControl>
                   <FormMessage />
+                  {companyError && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      This company already has an account. New users must be added by an existing team member.
+                    </p>
+                  )}
                 </FormItem>
               )}
             />
