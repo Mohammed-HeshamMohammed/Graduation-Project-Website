@@ -1,4 +1,4 @@
-# Modified app/services/auth/authentication_forms.py
+# app/services/auth/authentication_forms.py
 from fastapi import HTTPException, Request, status
 from typing import Dict
 import time
@@ -7,19 +7,17 @@ import traceback
 
 from app.models.user_models import UserRegister, UserLogin, UserResponse
 from app.services.auth.storage import UserStorage
-from app.services.auth.company_storage import CompanyStorage  # Import the new company storage
 from app.services.auth.email_utils import send_verification_email
 from app.services.auth.utils import hash_password, verify_password, create_token, validate_password_strength, verify_token
 from app.services.auth import logging_service
-from app.services.auth.RateLimiter import rate_limiter
-from app.services.auth.auth_templates import HTML_TEMPLATES
+from app.services.auth.RateLimiter import rate_limiter  # Import the singleton instance
+from app.services.auth.auth_templates import HTML_TEMPLATES  # Import from new templates module
 from app.config import settings
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 user_storage = UserStorage()
-company_storage = CompanyStorage()  # Initialize company storage
 
 # Token validation helper
 def validate_token(token: str, token_type: str = None) -> Dict[str, str]:
@@ -60,7 +58,7 @@ async def register(user_data: UserRegister, request: Request):
     
     # Validate password strength
     if not validate_password_strength(user_data.password):
-        logging_service.warning(request, f"Password does not meet strength requirements")
+        logging_service.warning(request, "Password does not meet strength requirements")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters"
@@ -90,18 +88,6 @@ async def register(user_data: UserRegister, request: Request):
                     "message": "Verification email resent"
                 }
         
-        # Check company registration restriction
-        company_name = user_data.company_name
-        if company_name:
-            # Check if the company is already registered
-            if company_storage.is_company_registered(company_name):
-                # MODIFIED: Block regular registration for existing companies
-                logging_service.warning(request, f"Unauthorized registration attempt for existing company {company_name} by {user_data.email}")
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="This company is already registered. New users for this company must be added by an existing team member."
-                )
-        
         # Create new user
         logging_service.info(request, f"Creating new user: {user_data.email}")
         hashed_password = hash_password(user_data.password)
@@ -125,11 +111,6 @@ async def register(user_data: UserRegister, request: Request):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to save user data"
             )
-        
-        # If company name is provided and company doesn't exist yet, register it
-        if company_name and not company_storage.is_company_registered(company_name):
-            company_storage.add_company(company_name, user_data.email)
-            logging_service.info(request, f"Registered new company: {company_name} with admin: {user_data.email}")
         
         # Generate verification token (24 hour expiration)
         token = create_token({"email": user_data.email, "type": "verification"}, 1440)

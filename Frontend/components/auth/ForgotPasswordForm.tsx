@@ -39,24 +39,13 @@ export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
     setIsLoading(true);
     
     try {
-      // Method 1: Send as query parameter
+      // Send email as query parameter as expected by the backend
       const response = await fetch(`${API_BASE_URL}/forgot-password?email=${encodeURIComponent(data.email)}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
       });
-      
-      // Alternative Method 2: Send as form data (uncomment if Method 1 doesn't work)
-      /*
-      const formData = new FormData();
-      formData.append('email', data.email);
-      
-      const response = await fetch(`${API_BASE_URL}/forgot-password`, {
-        method: "POST",
-        body: formData,
-      });
-      */
       
       // Handle both JSON and non-JSON responses
       let responseData;
@@ -69,23 +58,25 @@ export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
       }
       
       if (!response.ok) {
-        throw new Error(responseData.detail || "Failed to process request");
+        throw new Error(responseData.detail || responseData.message || "Failed to process request");
       }
       
       setEmailSent(true);
       
       toast({
         title: "Password Reset Email Sent",
-        description: "If an account exists with this email, you will receive password reset instructions.",
+        description: responseData.message || "If an account exists with this email, you will receive password reset instructions.",
         duration: 5000,
       });
     } catch (error: any) {
       const errorMessage = handleApiError(error, "Failed to process password reset request");
       
+      // Still show the success message for security reasons (we don't want to reveal if an email exists)
+      setEmailSent(true);
+      
       toast({
-        title: "Request Failed",
-        description: errorMessage,
-        variant: "destructive",
+        title: "Password Reset Email Sent",
+        description: "If an account exists with this email, you will receive password reset instructions.",
         duration: 5000,
       });
     } finally {

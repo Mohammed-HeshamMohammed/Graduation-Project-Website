@@ -1,6 +1,6 @@
 # app/services/utils.py
-from jose import jwt  # type: ignore # Change from import jwt to from jose import jwt
-import bcrypt # type: ignore
+from jose import jwt  # Change from import jwt to from jose import jwt
+import bcrypt
 from datetime import datetime, timedelta
 import secrets
 import string

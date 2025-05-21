@@ -147,7 +147,6 @@ export default function Navbar() {
       // Update state
       setIsLoggedIn(false);
       setUser(null);
-      setIsContextMenuOpen(false);
       
       // Dispatch event to notify other components
       window.dispatchEvent(new Event("loginStateChanged"));
@@ -347,8 +346,4 @@ export default function Navbar() {
       {isMobileView && <div className="h-16" />}
     </>
   )
-}
-
-function setIsContextMenuOpen(arg0: boolean) {
-  throw new Error("Function not implemented.")
 }

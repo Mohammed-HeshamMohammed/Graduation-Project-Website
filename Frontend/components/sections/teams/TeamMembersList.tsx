@@ -1,6 +1,7 @@
 // src/app/team-management/components/TeamMembersList.tsx
-import { Users, UserCog, Trash2, CheckCircle, XCircle, AlertTriangle, PlusCircle } from "lucide-react";
+import { Users, UserCog, Trash2, CheckCircle, XCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { useTeamMembers } from "./TeamMembersContext";
+import { useEffect } from "react";
 
 const TeamMembersList = () => {
   const { 
@@ -8,15 +9,37 @@ const TeamMembersList = () => {
     loading, 
     error, 
     openPrivilegesForm, 
-    removeTeamMember 
+    removeTeamMember,
+    fetchTeamMembers
   } = useTeamMembers();
+
+  // Force refresh on mount
+  useEffect(() => {
+    fetchTeamMembers();
+  }, [fetchTeamMembers]);
+
+  const handleRefresh = () => {
+    fetchTeamMembers();
+  };
 
   if (loading) {
     return (
       <div className="bg-gray-800 rounded-lg shadow-md overflow-hidden">
-        <div className="px-6 py-4 bg-gray-900 border-b border-gray-700 flex items-center">
-          <Users className="mr-2" size={20} />
-          <h2 className="text-xl font-semibold text-white">Team Members</h2>
+        <div className="px-6 py-4 bg-gray-900 border-b border-gray-700 flex items-center justify-between">
+          <div className="flex items-center">
+            <Users className="mr-2" size={20} />
+            <h2 className="text-xl font-semibold text-white">Team Members</h2>
+          </div>
+          <button
+            onClick={handleRefresh}
+            className="text-gray-400 hover:text-gray-200"
+            disabled={loading}
+            aria-label="Refresh team members list"
+            title="Refresh team members list"
+          >
+            <RefreshCw className={`${loading ? 'animate-spin' : ''}`} size={16} />
+            <span className="sr-only">Refresh</span>
+          </button>
         </div>
         <div className="p-8 text-center text-gray-400">
           <div className="flex flex-col items-center justify-center py-6">
@@ -31,9 +54,20 @@ const TeamMembersList = () => {
   if (error) {
     return (
       <div className="bg-gray-800 rounded-lg shadow-md overflow-hidden">
-        <div className="px-6 py-4 bg-gray-900 border-b border-gray-700 flex items-center">
-          <Users className="mr-2" size={20} />
-          <h2 className="text-xl font-semibold text-white">Team Members</h2>
+        <div className="px-6 py-4 bg-gray-900 border-b border-gray-700 flex items-center justify-between">
+          <div className="flex items-center">
+            <Users className="mr-2" size={20} />
+            <h2 className="text-xl font-semibold text-white">Team Members</h2>
+          </div>
+          <button
+            onClick={handleRefresh}
+            className="text-gray-400 hover:text-gray-200"
+            aria-label="Refresh team members list"
+            title="Refresh team members list"
+          >
+            <RefreshCw size={16} />
+            <span className="sr-only">Refresh</span>
+          </button>
         </div>
         <div className="p-8">
           <div className="flex flex-col items-center justify-center py-6 text-red-400">
@@ -41,7 +75,7 @@ const TeamMembersList = () => {
             <h3 className="text-lg font-semibold mb-2">Error Loading Team Members</h3>
             <p className="text-center mb-4">{error}</p>
             <button 
-              onClick={() => window.location.reload()}
+              onClick={handleRefresh}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md"
             >
               Try Again
@@ -55,16 +89,33 @@ const TeamMembersList = () => {
   if (members.length === 0) {
     return (
       <div className="bg-gray-800 rounded-lg shadow-md overflow-hidden">
-        <div className="px-6 py-4 bg-gray-900 border-b border-gray-700 flex items-center">
-          <Users className="mr-2" size={20} />
-          <h2 className="text-xl font-semibold text-white">Team Members</h2>
-          <span className="ml-2 text-gray-400">(0)</span>
+        <div className="px-6 py-4 bg-gray-900 border-b border-gray-700 flex items-center justify-between">
+          <div className="flex items-center">
+            <Users className="mr-2" size={20} />
+            <h2 className="text-xl font-semibold text-white">Team Members</h2>
+            <span className="ml-2 text-gray-400">(0)</span>
+          </div>
+          <button
+            onClick={handleRefresh}
+            className="text-gray-400 hover:text-gray-200"
+            aria-label="Refresh team members list"
+            title="Refresh team members list"
+          >
+            <RefreshCw size={16} />
+            <span className="sr-only">Refresh</span>
+          </button>
         </div>
         <div className="p-8">
           <div className="flex flex-col items-center justify-center py-8 text-gray-400">
             <Users size={48} className="mb-4 opacity-30" />
             <h3 className="text-lg font-semibold mb-2">No Team Members Found</h3>
             <p className="text-center mb-6">Add your first team member to get started</p>
+            <button 
+              onClick={handleRefresh}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md"
+            >
+              Refresh List
+            </button>
           </div>
         </div>
       </div>
@@ -73,10 +124,21 @@ const TeamMembersList = () => {
 
   return (
     <div className="bg-gray-800 rounded-lg shadow-md overflow-hidden">
-      <div className="px-6 py-4 bg-gray-900 border-b border-gray-700 flex items-center">
-        <Users className="mr-2" size={20} />
-        <h2 className="text-xl font-semibold text-white">Team Members</h2>
-        <span className="ml-2 text-gray-400">({members.length})</span>
+      <div className="px-6 py-4 bg-gray-900 border-b border-gray-700 flex items-center justify-between">
+        <div className="flex items-center">
+          <Users className="mr-2" size={20} />
+          <h2 className="text-xl font-semibold text-white">Team Members</h2>
+          <span className="ml-2 text-gray-400">({members.length})</span>
+        </div>
+        <button
+          onClick={handleRefresh}
+          className="text-gray-400 hover:text-gray-200"
+          aria-label="Refresh team members list"
+          title="Refresh team members list"
+        >
+          <RefreshCw size={16} />
+          <span className="sr-only">Refresh</span>
+        </button>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full">
@@ -135,6 +197,8 @@ const TeamMembersList = () => {
                       <button
                         onClick={() => openPrivilegesForm(member)}
                         className="text-indigo-400 hover:text-indigo-300 mr-4"
+                        aria-label={`Manage privileges for ${member.full_name}`}
+                        title={`Manage privileges for ${member.full_name}`}
                       >
                         <span className="flex items-center">
                           <UserCog className="mr-1" size={16} />
@@ -142,8 +206,15 @@ const TeamMembersList = () => {
                         </span>
                       </button>
                       <button
-                        onClick={() => removeTeamMember(member.email)}
+                        onClick={() => {
+                          removeTeamMember(member.email).then(() => {
+                            // Refresh after removal
+                            setTimeout(fetchTeamMembers, 500);
+                          });
+                        }}
                         className="text-red-400 hover:text-red-300"
+                        aria-label={`Remove ${member.full_name} from team`}
+                        title={`Remove ${member.full_name} from team`}
                       >
                         <span className="flex items-center">
                           <Trash2 className="mr-1" size={16} />

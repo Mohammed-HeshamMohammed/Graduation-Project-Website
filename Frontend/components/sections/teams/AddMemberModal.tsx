@@ -9,20 +9,38 @@ interface AddMemberModalProps {
 }
 
 const AddMemberModal = ({ isOpen, onClose }: AddMemberModalProps) => {
-  const { registerTeamMember } = useTeamMembers();
+  const { registerTeamMember, fetchTeamMembers } = useTeamMembers();
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberPassword, setNewMemberPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await registerTeamMember(newMemberEmail, newMemberName, newMemberPassword);
-    setNewMemberEmail("");
-    setNewMemberName("");
-    setNewMemberPassword("");
-    onClose();
+    
+    if (isSubmitting) return;
+    
+    try {
+      setIsSubmitting(true);
+      await registerTeamMember(newMemberEmail, newMemberName, newMemberPassword);
+      
+      // Force refresh the member list after adding a new member
+      await fetchTeamMembers();
+      
+      // Reset form
+      setNewMemberEmail("");
+      setNewMemberName("");
+      setNewMemberPassword("");
+      
+      // Close modal
+      onClose();
+    } catch (error) {
+      console.error("Error adding team member:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -90,14 +108,23 @@ const AddMemberModal = ({ isOpen, onClose }: AddMemberModalProps) => {
               type="button"
               onClick={onClose}
               className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md mr-2"
+              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md flex items-center"
+              disabled={isSubmitting}
             >
-              Add Member
+              {isSubmitting ? (
+                <>
+                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                  Adding...
+                </>
+              ) : (
+                'Add Member'
+              )}
             </button>
           </div>
         </form>

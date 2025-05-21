@@ -47,6 +47,7 @@ export function LoginForm({ onSuccess, initialEmail = "" }: LoginFormProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
+        credentials: "include", // Include cookies if the server uses them
       });
       
       const responseData = await response.json();
@@ -83,6 +84,9 @@ export function LoginForm({ onSuccess, initialEmail = "" }: LoginFormProps) {
         name: responseData.full_name,
         token: responseData.token,
         verified: responseData.verified,
+        company_name: responseData.company_name,
+        company_id: responseData.company_id,
+        privileges: responseData.privileges,
       });
       
       // Dispatch event to notify other components about login state change

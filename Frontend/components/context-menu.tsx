@@ -1,5 +1,3 @@
-// Updated context-menu.tsx file with styling to match auth form/modal
-
 "use client";
 
 import React, { useRef, useEffect, useState } from 'react';
@@ -7,6 +5,8 @@ import { motion } from "framer-motion";
 import { User, Settings, UsersRound, LogOut, LayoutDashboard } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useRouter } from 'next/navigation';
+
 
 interface ContextMenuProps {
   isLoggedIn: boolean;
@@ -92,10 +92,11 @@ export const ContextMenu = ({
       width: `${menuWidth}px`
     };
   };
-
+  const router = useRouter();
   const handleMenuItemClick = (action: string) => {
     if (action === 'logout' && onLogout) {
       onLogout();
+      router.push('/'); // redirect to home
     } else if (onNavigate) {
       onNavigate(action);
     }

@@ -61,6 +61,7 @@ export const TeamMembersProvider = ({ children }: { children: ReactNode }) => {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [selectedPrivileges, setSelectedPrivileges] = useState<string[]>([]);
   const [statusMessage, setStatusMessage] = useState<StatusMessageType>(null);
+  const [removeInProgress, setRemoveInProgress] = useState(false);
 
   const fetchTeamMembers = useCallback(async () => {
     setLoading(true);
@@ -71,6 +72,7 @@ export const TeamMembersProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Authentication token not found");
       }
       
+      // Using the correct endpoint from auth.py: /api/team/members
       const response = await fetch(`${baseurl}/api/team/members?token=${token}`, {
         method: "GET",
         headers: {
@@ -116,6 +118,7 @@ export const TeamMembersProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Authentication token not found");
       }
       
+      // Using the correct endpoint from auth.py: /api/team/register
       const response = await fetch(`${baseurl}/api/team/register?token=${token}`, {
         method: "POST",
         headers: {
@@ -140,7 +143,7 @@ export const TeamMembersProvider = ({ children }: { children: ReactNode }) => {
         message: "Team member registered successfully! Verification email sent.",
       });
       
-      fetchTeamMembers();
+      await fetchTeamMembers();
     } catch (err) {
       setStatusMessage({
         type: "error",
@@ -150,17 +153,22 @@ export const TeamMembersProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const removeTeamMember = async (email: string) => {
+    // Prevent duplicate removal requests
+    if (removeInProgress) return;
+    
     if (!confirm(`Are you sure you want to remove ${email} from the team?`)) {
       return;
     }
     
     try {
+      setRemoveInProgress(true);
       const token = getAuthToken();
       
       if (!token) {
         throw new Error("Authentication token not found");
       }
       
+      // Using the correct endpoint from auth.py: /api/team/members/{email}
       const response = await fetch(`${baseurl}/api/team/members/${encodeURIComponent(email)}?token=${token}`, {
         method: "DELETE",
         headers: {
@@ -175,17 +183,25 @@ export const TeamMembersProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(errorData.detail || `Failed to remove team member (${response.status})`);
       }
 
+      // Optimistically update UI by removing the user from the members array
+      setMembers(prevMembers => prevMembers.filter(member => member.email !== email));
+      
       setStatusMessage({
         type: "success",
         message: "Team member removed successfully!",
       });
       
-      fetchTeamMembers();
+      // Refresh the member list to ensure consistency with the server
+      await fetchTeamMembers();
     } catch (err) {
       setStatusMessage({
         type: "error",
         message: err instanceof Error ? err.message : "Failed to remove team member",
       });
+      // Refresh the list to ensure UI reflects actual state
+      await fetchTeamMembers();
+    } finally {
+      setRemoveInProgress(false);
     }
   };
 
@@ -199,6 +215,7 @@ export const TeamMembersProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Authentication token not found");
       }
       
+      // Using the correct endpoint from auth.py: /api/team/members/{email}/privileges
       const response = await fetch(`${baseurl}/api/team/members/${encodeURIComponent(selectedMember.email)}/privileges?token=${token}`, {
         method: "PUT",
         headers: {
@@ -222,7 +239,7 @@ export const TeamMembersProvider = ({ children }: { children: ReactNode }) => {
       });
       
       closePrivilegesForm();
-      fetchTeamMembers();
+      await fetchTeamMembers();
     } catch (err) {
       setStatusMessage({
         type: "error",
