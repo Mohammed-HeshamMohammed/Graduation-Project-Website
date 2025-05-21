@@ -7,9 +7,9 @@ import traceback
 
 from app.models.user_models import UserRegister, UserLogin, UserResponse
 from app.services.auth.storage import UserStorage
-from app.services.auth.email_utils import send_verification_email
-from app.services.auth.utils import hash_password, verify_password, create_token, validate_password_strength, verify_token
-from app.services.auth import logging_service
+from app.services.email_utils import send_verification_email
+from app.services.utils import hash_password, verify_password, create_token, validate_password_strength, verify_token
+from app.services import logging_service
 from app.services.auth.RateLimiter import rate_limiter  # Import the singleton instance
 from app.services.auth.auth_templates import HTML_TEMPLATES  # Import from new templates module
 from app.config import settings

@@ -9,9 +9,9 @@ from fastapi import BackgroundTasks
 # Use relative imports for better compatibility
 from app.models.user_models import UserRegister, UserLogin, UserResponse
 from app.services.auth.storage import UserStorage
-from app.services.auth.email_utils import send_verification_email
-from app.services.auth.utils import verify_token
-from app.services.auth import logging_service
+from app.services.email_utils import send_verification_email
+from app.services.utils import verify_token
+from app.services import logging_service
 from app.services.auth.RateLimiter import rate_limiter
 from app.services.auth.authentication_forms import register, verify, login
 from app.services.auth.password_handler import (

@@ -13,7 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.routes import auth
 from app.config import settings
 from app.middleware.security import SecurityHeadersMiddleware, RequestLoggingMiddleware
-from app.services.auth.logging_service import LoggingMiddleware  # Import LoggingMiddleware
+from app.services.logging_service import LoggingMiddleware  # Import LoggingMiddleware
 
 app = FastAPI(
     title=settings.APP_NAME,
