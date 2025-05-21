@@ -1,0 +1,250 @@
+{
+  // =============================
+  // 🔐 USER REGISTRATION & AUTH
+  // =============================
+
+  "UserRegister": {
+    "email": "string",
+    "password": "string",
+    "full_name": "string",
+    "company_name": "string",
+    "company_address": "string (optional)",
+    "company_id": "string (auto-generated)",
+    "user_id": "string (auto-generated)"
+  },
+
+  "User": {
+    "uuid": "string",
+    "email": "string",
+    "password": "string (hashed)",
+    "full_name": "string",
+    "company_id": "string",
+    "verified": "boolean",
+    "is_logged_in": "boolean",
+    "privileges": ["string"],
+    "is_owner": "boolean",
+    "added_by": "string (user UUID)",
+    "added_by_email": "string",
+    "added_at": "float",
+    "password_history": ["string"]
+  },
+
+  "UserResponse": {
+    "uuid": "string",
+    "email": "string",
+    "verified": "boolean",
+    "is_logged_in": "boolean",
+    "full_name": "string",
+    "company_id": "string",
+    "company_name": "string",
+    "is_owner": "boolean",
+    "message": "string",
+    "token": "string"
+  },
+
+  // =============================
+  // 🏢 COMPANY & BUSINESS DETAILS
+  // =============================
+
+  "Company": {
+    "uuid": "string",
+    "company_name": "string",
+    "company_address": "string",
+    "logo": "file (optional)",
+    "industry": {
+      "type": "string",
+      "options": ["Transportation", "Logistics", "Construction", "Delivery", "Other"]
+    },
+    "company_size": {
+      "type": "string",
+      "options": [
+        "Small (1–50 employees)",
+        "Medium (51–200 employees)",
+        "Large (201–1000 employees)",
+        "Enterprise (1000+ employees)"
+      ]
+    },
+    "contact_phone": "string",
+    "contact_email": "string",
+    "website": "string (optional)",
+    "timezone": {
+      "type": "string",
+      "options": [
+        "GMT+0", "GMT+1", "GMT+2", "GMT+3 (Africa/Cairo)",
+        "GMT+4", "GMT+5", "GMT+6"
+      ]
+    }
+  },
+
+  "BusinessHours": {
+    "company_id": "string",
+    "start_time": "string",
+    "end_time": "string",
+    "working_days": {
+      "monday": "boolean",
+      "tuesday": "boolean",
+      "wednesday": "boolean",
+      "thursday": "boolean",
+      "friday": "boolean",
+      "saturday": "boolean",
+      "sunday": "boolean"
+    }
+  },
+
+  "CompanyLocations": [
+    {
+      "uuid": "string",
+      "company_id": "string",
+      "name": "string",
+      "address": "string",
+      "type": {
+        "type": "string",
+        "options": ["Headquarters", "Depot", "Garage", "Fuel Station", "Maintenance Hub"]
+      },
+      "tags": ["string"]
+    }
+  ],
+
+  // =============================
+  // 🛂 PRIVILEGE SYSTEM
+  // =============================
+
+  "PrivilegeStructure": {
+    "users": [ /* user entries with their privilege sets */ ],
+    "privilege_options": {
+      "core": ["owner", "admin", "add", "remove"],
+      "dashboard": [
+        "manager", "dispatcher", "engineer", "fuel_manager",
+        "fleet_officer", "analyst", "viewer"
+      ]
+    },
+    "privilege_hierarchy": {
+      "dashboard_access": [
+        "owner", "admin", "manager", "dispatcher",
+        "engineer", "fuel_manager", "fleet_officer", "analyst", "viewer"
+      ],
+      "trip_management": ["owner", "admin", "manager", "dispatcher"],
+      "maintenance_access": ["owner", "admin", "manager", "engineer"],
+      "fuel_access": ["owner", "admin", "manager", "fuel_manager"],
+      "fleet_management": ["owner", "admin", "manager", "fleet_officer"],
+      "analytics_access": ["owner", "admin", "manager", "analyst"],
+      "view_only": ["viewer", "analyst"]
+    },
+    "default_privilege": "viewer"
+  },
+
+  // =============================
+  // 👥 DRIVERS
+  // =============================
+
+  "Drivers": [
+    {
+      "id": "string",
+      "company_id": "string",
+      "first_name": "string",
+      "last_name": "string",
+      "email": "string",
+      "phone_number": "string",
+      "address": "string",
+      "date_of_birth": "YYYY-MM-DD",
+      "license_number": "string",
+      "license_type": "CDL Class A | B | C | Non-CDL",
+      "license_expiry_date": "YYYY-MM-DD",
+      "issuing_state_country": "string",
+      "hire_date": "YYYY-MM-DD",
+      "employee_id": "string",
+      "years_of_experience": "float",
+      "employment_status": "Full-time | Part-time | Contract | Probation",
+      "medical_information": "string (optional)",
+      "emergency_contact": "string (optional)",
+	        "hazmat_endorsement": "boolean",
+      "tanker_endorsement": "boolean",
+      "passenger_endorsement": "boolean",
+      "created_by": "string (user_email)",
+      "created_at": "string (timestamp)",
+      "updated_by": "string (user_email)",
+      "updated_at": "string (timestamp)"
+    }
+  ],
+
+  // =============================
+  // 🚚 VEHICLES
+  // =============================
+
+  "Vehicles": [
+    {
+      "id": "string",
+      "company_id": "string",
+      "vehicle_code": "string",
+      "license_plate": "string",
+      "brand": "string",
+      "model": "string",
+      "year": "integer",
+      "vin": "string",
+      "engine_type": "string",
+      "horsepower": "integer",
+      "transmission_type": "Automatic | Manual | Semi-Automatic",
+      "fuel_type": "Diesel | Gasoline | Electric | Hybrid | CNG | LPG",
+      "fuel_tank_capacity_l": "float",
+      "fuel_efficiency_kmpl": "float",
+      "load_capacity_kg": "float",
+      "number_of_axles": "integer",
+      "length_m": "float",
+      "width_m": "float",
+      "height_m": "float",
+      "empty_weight_kg": "float",
+      "assigned_garage": "string", // could link to location_id
+      "status": "Active | In Maintenance | Inactive",
+      "purchase_date": "YYYY-MM-DD",
+      "purchase_price": "float",
+      "notes": "string (optional)",
+      "gps_tracking_enabled": "boolean",
+      "dash_camera_installed": "boolean",
+      "telematics_system_installed": "boolean",
+      "created_by": "string (user_email)",
+      "created_at": "string (timestamp)",
+      "updated_by": "string (user_email)",
+      "updated_at": "string (timestamp)"
+    }
+  ],
+
+  // =============================
+  // 📦 TRIPS
+  // =============================
+
+  "Trips": [
+    {
+      "uuid": "string",
+      "company_id": "string",
+      "vehicle_id": "string",            // FK to Vehicles
+      "driver_id": "string",             // FK to Drivers
+      "dispatcher_id": "string",         // FK to User
+      "start_location_id": "string",     // FK to CompanyLocations
+      "end_location_id": "string",       // FK to CompanyLocations
+      "start_time": "string",
+      "end_time": "string (optional)",
+      "status": "planned | active | completed | canceled",
+      "notes": "string (optional)"
+    }
+  ],
+
+  // =============================
+  // 🛠 MAINTENANCE LOGS
+  // =============================
+
+  "Maintenance": [
+    {
+      "uuid": "string",
+      "company_id": "string",
+      "vehicle_id": "string",            // FK to Vehicles
+      "trip_id": "string (optional)",    // FK to Trips
+      "reported_by": "string (user UUID)",
+      "report_date": "string",
+      "issue": "string",
+      "status": "pending | in-progress | resolved",
+      "resolved_by": "string (user UUID, optional)",
+      "resolved_at": "string (optional)"
+    }
+  ]
+}
+
