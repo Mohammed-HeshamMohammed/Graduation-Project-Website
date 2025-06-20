@@ -6,7 +6,7 @@ import logging
 import traceback
 
 from app.models.user_models import UserRegister, UserLogin, UserResponse
-from app.services.auth.storage import UserStorage
+from app.services.storage import UserStorage
 from app.services.email_utils import send_verification_email
 from app.services.utils import hash_password, verify_password, create_token, validate_password_strength, verify_token
 from app.services import logging_service
