@@ -1,0 +1,183 @@
+User utilities package for user management operations.
+
+This package provides utilities for:
+- User management and validation
+- Notes management  
+- Password history tracking
+- Messaging services
+- Privilege management
+- Data backup and cleanup
+- Authentication utilities
+
+ARCHITECTURE:
+- UserUtils: Main orchestrator class that integrates all functionality
+- AuthUtils: Authentication and password management utilities
+- UserValidator: Handles data validation and format checking
+- PrivilegeManager: Manages user privileges and access control
+- DataManager: Handles backups, statistics, and data cleanup
+- Convenience functions: Simple interface for common operations
+
+INTEGRATION FLOW:
+UserUtils creates and manages instances of all other components, providing
+a unified interface while maintaining separation of concerns.
+
+MAIN CLASSES DOCUMENTATION
+
+UserUtils - Main utility class for user management operations
+
+INITIALIZATION:
+    utils = UserUtils(storage: UserStorage)
+
+KEY METHODS:
+    - get_all_users() -> Dict[str, Any]
+    - get_user_count() -> int
+    - user_exists(email: str) -> bool  
+    - get_company_user_count(company_id: str) -> int
+    - search_users_by_company(company_id, search_term, requesting_user_email, limit) -> List[Dict]
+    - has_privilege(user_privileges: List[str], required_privilege: str) -> bool
+    - can_access_feature(user_privileges: List[str], feature: str) -> bool
+    - validate_user_data(user_data: dict) -> tuple[bool, str]
+    - backup_data(backup_path: str = None) -> bool
+    - get_user_statistics(company_id: str = None) -> Dict[str, Any]
+    - cleanup_old_data(days_old: int = 90) -> Dict[str, int]
+
+NOTES MANAGEMENT:
+    - add_user_note(user_uuid, note, author_uuid, author_privileges) -> bool
+    - get_user_notes(user_uuid, requesting_user_email) -> Optional[Dict[str, Any]]
+    - update_note(note_id, new_content, user_uuid, author_uuid, author_privileges) -> bool
+    - delete_note(note_id, user_uuid, author_uuid, author_privileges) -> bool
+    - search_notes(search_term, company_id, requesting_user_privileges, limit) -> List[Dict[str, Any]]
+    - save_user_notes(user_uuid, notes, requesting_user_email) -> bool
+
+PASSWORD HISTORY:
+    - check_password_in_history(user_uuid: str, password_hash: str, **kwargs) -> bool
+    - update_user_password(user_uuid: str, company_uuid: str, new_password_hash: str, bypass_history_check=False, **kwargs) -> bool
+    - get_password_history_count(user_uuid: str, **kwargs) -> int
+    - clear_user_password_history(user_uuid: str, company_uuid: str, requesting_admin_uuid: str, **kwargs) -> bool
+    - add_password_to_history(user_uuid: str, company_uuid: str, password_hash: str, max_history=None, **kwargs) -> bool
+    - handle_user_company_transfer(user_uuid: str, old_company_uuid: str, new_company_uuid: str, requesting_admin_uuid: str, preserve_history=True, **kwargs) -> bool
+
+MESSAGING:
+    - add_message_to_user(user_uuid, message, author_uuid, message_type="general") -> bool
+    - get_user_messages(user_uuid, requesting_user_email) -> Optional[Dict[str, Any]]
+    - send_warning_to_subordinates(sender_uuid, message, target_user_uuids=None) -> Dict[str, Any]
+    - send_disciplinary_action(sender_uuid, target_user_uuid, action_type, message, severity="medium") -> Dict[str, Any]
+    - cleanup_user_messages(user_uuid) -> bool
+    - save_user_messages(user_uuid, messages, requesting_user_email) -> bool
+
+UserValidator - Handles user data validation
+
+INITIALIZATION:
+    validator = UserValidator()
+
+KEY METHODS:
+    - validate_user_data(user_data: dict) -> tuple[bool, str]
+    - validate_email_format(email: str) -> bool
+    - validate_uuid_format(uuid: str) -> bool  
+    - validate_company_id(company_id: str) -> bool
+    - get_valid_privileges() -> Set[str]
+    - is_valid_privilege(privilege: str) -> bool
+
+VALIDATION RULES:
+    Required fields: ['uuid', 'email', 'password', 'full_name', 'company_id']
+    Boolean fields: ['verified', 'is_logged_in', 'is_owner'] 
+    Valid privileges: {'owner', 'admin', 'add', 'remove', 'manager', 'dispatcher',
+                      'engineer', 'fuel_manager', 'fleet_officer', 'analyst', 'viewer'}
+
+PrivilegeManager - Handles user privilege management and validation
+
+INITIALIZATION:
+    privilege_manager = PrivilegeManager(storage: UserStorage)
+
+PRIVILEGE HIERARCHY (highest to lowest):
+    ["owner", "admin", "manager", "dispatcher", "engineer", 
+     "fuel_manager", "fleet_officer", "analyst", "viewer"]
+
+KEY METHODS:
+    - has_privilege(user_privileges: List[str], required_privilege: str) -> bool
+    - can_access_feature(user_privileges: List[str], feature: str) -> bool
+    - get_user_privilege_level(user_privileges: List[str]) -> int
+    - is_higher_privilege(user_privileges: List[str], target_privileges: List[str]) -> bool
+    - can_manage_user(manager_privileges: List[str], target_privileges: List[str]) -> bool
+    - get_manageable_privileges(user_privileges: List[str]) -> List[str]
+    - get_privilege_hierarchy() -> List[str]
+    - get_privilege_description(privilege: str) -> str
+    - validate_privilege_assignment(assigner_privileges, target_privileges, new_privileges) -> tuple[bool, str]
+
+MANAGEMENT RULES:
+    - Owners can manage anyone except other owners
+    - Admins can manage anyone below admin level
+    - Managers can manage anyone below manager level
+    - Other privileges cannot manage users
+
+DataManager - Handles data backup, statistics, and cleanup operations
+
+INITIALIZATION:
+    data_manager = DataManager(storage, notes_manager, password_history_manager, messaging_service)
+
+KEY METHODS:
+    - backup_data(backup_path: str = None) -> bool
+    - get_user_statistics(company_id: str = None) -> Dict[str, Any]
+    - cleanup_old_data(days_old: int = 90) -> Dict[str, int]
+    - export_data(export_path: str, data_types: list = None) -> bool
+    - get_data_size_info() -> Dict[str, Any]
+
+CONVENIENCE FUNCTIONS DOCUMENTATION
+
+Convenience functions provide simple interfaces for common operations
+
+USER OPERATIONS:
+    - create_user_utils(storage: UserStorage = None) -> UserUtils
+    - user_exists(email: str, storage: UserStorage = None) -> bool
+    - get_total_user_count(storage: UserStorage = None) -> int
+    - get_user_count_for_company(company_id: str, storage: UserStorage = None) -> int
+    - search_company_users(company_id, search_term="", requesting_user_email=None, limit=50, storage: UserStorage = None) -> list
+
+VALIDATION:
+    - validate_user_data_simple(user_data: dict, storage: UserStorage = None) -> tuple[bool, str]
+    - validate_email_format(email: str) -> bool
+
+PRIVILEGE MANAGEMENT:
+    - check_user_privilege(user_privileges: List[str], required_privilege: str, storage: UserStorage = None) -> bool
+    - get_privilege_hierarchy() -> list
+    - is_valid_privilege(privilege: str) -> bool
+
+NOTES & MESSAGING:
+    - add_note_for_user(user_uuid, note, author_uuid, author_privileges, storage: UserStorage = None) -> bool
+    - send_message_to_user(user_uuid, message, author_uuid, message_type="general", storage: UserStorage = None) -> bool
+
+PASSWORD MANAGEMENT:
+    - check_password_reuse(user_uuid: str, password_hash: str, storage: UserStorage = None) -> bool
+
+DATA MANAGEMENT:
+    - get_user_stats(company_id: str = None, storage: UserStorage = None) -> dict
+    - backup_all_data(backup_path: str = None, storage: UserStorage = None) -> bool
+    - cleanup_old_data(days_old: int = 90, storage: UserStorage = None) -> dict
+
+USAGE PATTERN:
+    Most convenience functions accept an optional storage parameter.
+    If None is provided, a new UserStorage instance is created automatically.
+
+QUICK START EXAMPLES:
+
+# Basic user operations
+from user_utils import user_exists, get_total_user_count
+if user_exists("user@example.com"):
+    print(f"Total users: {get_total_user_count()}")
+
+# Privilege checking  
+from user_utils import check_user_privilege
+if check_user_privilege(["admin"], "manager"):
+    print("User has sufficient privileges")
+    
+# Data management
+from user_utils import backup_all_data, get_user_stats
+backup_all_data()
+stats = get_user_stats("company123")
+
+# Advanced usage with UserUtils class
+from user_utils import UserUtils
+from app.services.storage import UserStorage
+
+storage = UserStorage()
+utils =

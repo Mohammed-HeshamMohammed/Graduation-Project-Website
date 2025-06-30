@@ -46,7 +46,8 @@ class Settings:
     # Storage settings
     DATA_DIR = os.getenv("DATA_DIR", "app/data")
     USER_DATA_FILE = os.getenv("USER_DATA_FILE", "userdata.enc")
-    
+    COMPANY_DATA_FILE = os.getenv("COMPANY_DATA_FILE", "companydata.enc")
+
     # Email settings
     SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
     SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))

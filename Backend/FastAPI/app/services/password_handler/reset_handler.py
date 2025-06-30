@@ -12,7 +12,7 @@ from pathlib import Path
 
 from app.services.storage import UserStorage
 from app.services.email_utils import send_verification_email, send_password_reset_email
-from app.services.utils import create_token
+from app.services.utils.auth_utils import create_token
 from app.services import logging_service
 from app.services.auth.RateLimiter import rate_limiter
 

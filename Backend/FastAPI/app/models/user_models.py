@@ -6,6 +6,7 @@ import re
 class UserRegister(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8)
+    confirm_password: str = Field(..., min_length=8)
     full_name: str
     company_name: Optional[str] = None
     company_address: Optional[str] = None

@@ -8,7 +8,7 @@ import logging
 import traceback
 
 from app.services.storage import UserStorage
-from app.services.utils import verify_password, verify_token
+from app.services.utils.auth_utils import verify_password, verify_token
 from app.services import logging_service
 
 from .validators import validate_password_strength

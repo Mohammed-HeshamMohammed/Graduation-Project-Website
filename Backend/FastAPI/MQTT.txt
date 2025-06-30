@@ -1,0 +1,57 @@
+server_publisher.py
+==========================
+✅ Already Done:
+Send/broadcast commands
+
+Per-role command filtering
+
+Retry system with exponential backoff
+
+Command audit logging to file
+
+ACK handling and routing
+
+Queuing offline messages
+
+Dashboard stats access
+
+-------------------------------------------------------------------------
+
+🧠 Final Suggestions (Optional Enhancements):
+🔌 Real-Time Visual Dashboard (FastAPI/Flask + Vue/React):
+
+Expose get_dashboard_stats() and get_dashboard_retries() as a JSON API.
+
+Add a web dashboard to monitor command flow, retries, ACK rates.
+
+📊 ACK Success Rate Logging (Statistics):
+
+Track per-device success/failure counts.
+
+Maybe keep daily/rolling counters: { device_id: { success: 12, timeout: 3, retry_success: 4 } }.
+
+🧠 Access Control Improvements:
+
+Add wildcard roles like "*" to allow all roles.
+
+Support fallback/default rules if device is unknown.
+
+📁 Command Audit File Rotation or Size Limit:
+
+Rotate or truncate logs when size exceeds X MB or daily.
+
+Optionally support log-to-database.
+
+💡 Custom Retry Policy per Command:
+
+Allow command-level overrides for max_retries, base_delay, etc.
+
+Example: "restart" may retry fast, while "update_config" retries longer.
+
+🔒 Role Escalation Logging:
+
+Warn if lower roles (e.g. observer) attempt admin-level commands — security audit.
+
+📤 Optional MQTT-based Command Status Topic:
+
+Publish summary to truck/{device_id}/cmd_status like { command_id, status, timestamp }.

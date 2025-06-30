@@ -1,0 +1,62 @@
+Notes module for managing user notes with company-based access control.
+
+This module provides a complete notes management system with:
+- Hierarchical privilege-based access control
+- Company-based data isolation
+- Encrypted storage with backup functionality
+- Comprehensive audit logging
+- Search and statistics capabilities
+
+Main Components:
+    NotesManager: Primary interface for all notes operations
+    Note/NoteCreate/NoteUpdate: Data models for notes
+    NotesPrivilegeManager: Access control and privilege validation
+    NotesStorage: Encrypted persistence layer
+    Custom exceptions: Specific error handling
+
+Example Usage:
+    from app.services.notes import NotesManager, NoteCreate
+    notes_manager = NotesManager()
+    note_data = NoteCreate(
+        content="User showed excellent performance this month",
+        target_user_uuid="user-123",
+        author_uuid="manager-456"
+    )
+    note = notes_manager.create_note(note_data, ["manager", "admin"])
+    user_notes = notes_manager.get_user_notes(
+        user_uuid="user-123",
+        requesting_user_uuid="manager-456", 
+        requesting_user_privileges=["manager"]
+    )
+
+Required Privileges:
+    - Read notes: owner, admin, manager, dispatcher, engineer, fuel_manager, fleet_officer, analyst, viewer
+    - Write/Create notes: owner, admin, manager
+    - Edit notes: owner, admin, manager (+ original author)
+    - Delete notes: owner, admin
+    - Export notes: owner, admin
+    - View statistics: owner, admin, manager
+
+Data Flow:
+    1. API Request → NotesManager
+    2. NotesManager → NotesPrivilegeManager (access validation)
+    3. NotesManager → UserStorage (user info lookup)
+    4. NotesManager → NotesStorage (data persistence)
+    5. Response with appropriate models/exceptions
+
+API Request → NotesManager → [NotesPrivilegeManager + UserStorage + NotesStorage] → Response
+
+Convenience functions:
+    create_notes_manager(user_storage=None, notes_storage=None) -> NotesManager
+    validate_user_privileges(privileges: List[str]) -> Dict[str, bool>
+
+Module configuration:
+    DEFAULT_CONFIG = {
+        'max_notes_per_user': 20,
+        'cleanup_days': 180,
+        'search_limit': 50,
+        'backup_retention': 5
+    }
+
+def get_default_config():
+    Returns a copy of the

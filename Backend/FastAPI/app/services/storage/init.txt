@@ -1,0 +1,136 @@
+Storage module for user data management with encryption and access control.
+
+This module provides secure storage functionality for users, notes, and messages
+with proper encryption, access control, and privilege management.
+
+Architecture:
+    BaseStorage: Foundation class with encryption/decryption and validation
+    AccessControlMixin: Privilege-based access control functionality  
+    FileHandler: Manages encrypted file operations for different data types
+    UserStorage: Main orchestrator combining all components
+
+Usage Example:
+    from storage import UserStorage
+    storage = UserStorage()
+    user_data = storage.get_user_by_email("user@example.com")
+    success = storage.save_user(new_user_dict)
+    notes = storage.get_user_notes(user_uuid, requesting_user_email)
+    success = storage.save_user_notes(user_uuid, notes_dict, requesting_user_email)
+
+UserStorage Methods:
+    get_user_by_email(email)
+    get_user_by_uuid(uuid)
+    save_user(user)
+    update_user(user)
+    delete_user(email)
+    get_user_for_frontend(email, requesting_user_email=None)
+    get_users_by_company(company_id, requesting_user_email=None)
+    get_user_notes(user_uuid, requesting_user_email)
+    save_user_notes(user_uuid, notes, requesting_user_email)
+    get_user_messages(user_uuid, requesting_user_email)
+    save_user_messages(user_uuid, messages, requesting_user_email)
+    get_storage_stats()
+
+FileHandler Methods:
+    load_users()
+    save_users(users)
+    load_notes()
+    save_notes(notes)
+    load_messages()
+    save_messages(messages)
+    cleanup_user_files(user_uuid, users, notes, messages)
+    validate_data_integrity(users, notes, messages)
+    get_file_stats()
+
+Access Control System:
+    Privilege Hierarchy:
+        owner, admin, manager, dispatcher, engineer, fuel_manager, fleet_officer, analyst, viewer
+        Special: add, remove
+    Rules:
+        1. Users can always access their own data
+        2. Users in the same company can see each other's basic info
+        3. Sensitive data (passwords, tokens, etc.) is never returned
+        4. Admin/owner privileges allow broader access
+        5. Notes and messages require user ownership or admin privileges to modify
+
+Data Structures:
+    User:
+        {
+            'uuid': 'unique-user-id',
+            'email': 'user@company.com',
+            'full_name': 'User Full Name',
+            'company_id': 'company-identifier',
+            'privileges': ['manager', 'dispatcher'],
+            'verified': True,
+            'is_logged_in': False,
+            'is_owner': False,
+            'added_at': '2024-01-01T00:00:00Z',
+            'added_by': 'admin@company.com',
+            'added_by_email': 'admin@company.com'
+        }
+    Notes:
+        {
+            'user-uuid-123': {
+                'note_id_1': 'Note content here',
+                'note_id_2': 'Another note',
+                'metadata': {
+                    'last_updated': '2024-01-01T00:00:00Z',
+                    'note_count': 2
+                }
+            }
+        }
+    Messages:
+        {
+            'user-uuid-123': {
+                'message_id_1': {
+                    'content': 'Message content',
+                    'timestamp': '2024-01-01T00:00:00Z',
+                    'type': 'system',
+                    'read': False
+                },
+                'message_id_2': {
+                    'content': 'Another message',
+                    'timestamp': '2024-01-01T01:00:00Z',
+                    'type': 'user',
+                    'read': True
+                }
+            }
+        }
+    OperationResult:
+        success: bool
+        message: str
+        data: Any
+
+Best Practices:
+    - All methods include error handling and logging
+    - Thread-safe operations using RLock
+    - Atomic file operations (temp file + rename)
+    - Automatic backup creation before overwriting
+    - Input validation and sanitization
+    - Graceful handling of corrupted data files
+    - Rollback capability on operation failures
+    - All data encrypted at rest
+    - Sensitive fields filtered from responses
+    - Privilege-based access control
+    - No plaintext storage of sensitive information
+    - Data loaded into memory on initialization
+    - File I/O only on save operations
+    - Efficient data structure operations
+
+Common Usage:
+    storage = UserStorage()
+    user = storage.get_user_by_email(email)
+    if user:
+        pass
+    success = storage.save_user(user_data)
+    if not success:
+        pass
+    user_data = storage.get_user_for_frontend(target_email, requesting_email)
+    if user_data is None:
+        pass
+
+def get_storage():
+    Returns a UserStorage instance.
+    Example:
+        storage = get_storage()
+        user =

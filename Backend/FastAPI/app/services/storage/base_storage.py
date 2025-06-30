@@ -37,16 +37,6 @@ class BaseStorage:
         }
     
     def load_encrypted_data(self, file_path: Path, data_type: str) -> Dict[str, Any]:
-        """
-        Load and decrypt data from file.
-        
-        Args:
-            file_path: Path to the encrypted file
-            data_type: Type of data being loaded (for logging)
-            
-        Returns:
-            Dictionary containing the decrypted data
-        """
         if not os.path.exists(file_path):
             logger.info(f"{data_type.title()} file does not exist at {file_path}, creating new store")
             return {}
@@ -87,17 +77,6 @@ class BaseStorage:
             return {}
     
     def save_encrypted_data(self, data: Dict[str, Any], file_path: Path, data_type: str) -> bool:
-        """
-        Encrypt and save data to file.
-        
-        Args:
-            data: Dictionary to encrypt and save
-            file_path: Path where to save the encrypted file
-            data_type: Type of data being saved (for logging)
-            
-        Returns:
-            True if successful, False otherwise
-        """
         try:
             # Ensure directory exists
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -164,32 +143,12 @@ class BaseStorage:
             logger.error(f"Failed to backup corrupted data: {e}")
     
     def validate_input(self, value: Any, expected_type: type, field_name: str) -> bool:
-        """
-        Validate input parameters.
-        
-        Args:
-            value: Value to validate
-            expected_type: Expected type of the value
-            field_name: Name of the field for logging
-            
-        Returns:
-            True if valid, False otherwise
-        """
         if not value or not isinstance(value, expected_type):
             logger.warning(f"Invalid {field_name} provided: {type(value).__name__}")
             return False
         return True
     
     def sanitize_email(self, email: str) -> Optional[str]:
-        """
-        Sanitize and validate email address.
-        
-        Args:
-            email: Email address to sanitize
-            
-        Returns:
-            Sanitized email or None if invalid
-        """
         if not self.validate_input(email, str, "email"):
             return None
         

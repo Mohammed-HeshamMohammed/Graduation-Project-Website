@@ -1,6 +1,3 @@
-"""
-Access control mixin providing privilege-based access control functionality.
-"""
 
 import logging
 from typing import Dict, List, Any, Optional
@@ -43,16 +40,6 @@ class AccessControlMixin:
         }
     
     def has_privilege(self, user_privileges: List[str], required_privilege: str) -> bool:
-        """
-        Check if user has required privilege.
-        
-        Args:
-            user_privileges: List of user's privileges
-            required_privilege: Required privilege to check
-            
-        Returns:
-            True if user has the privilege, False otherwise
-        """
         if not user_privileges or not isinstance(user_privileges, list):
             return False
         
@@ -60,16 +47,6 @@ class AccessControlMixin:
         return any(priv in allowed_privileges for priv in user_privileges)
     
     def can_access_user_data(self, requesting_user: Dict[str, Any], target_user: Dict[str, Any]) -> bool:
-        """
-        Check if requesting user can access target user's data.
-        
-        Args:
-            requesting_user: User making the request
-            target_user: User whose data is being accessed
-            
-        Returns:
-            True if access is allowed, False otherwise
-        """
         if not requesting_user or not target_user:
             return False
         
@@ -92,17 +69,6 @@ class AccessControlMixin:
     
     def get_filtered_user_data(self, user_data: Dict[str, Any], requesting_user: Dict[str, Any], 
                               is_own_data: bool = False) -> Dict[str, Any]:
-        """
-        Filter user data based on access level.
-        
-        Args:
-            user_data: User data to filter
-            requesting_user: User making the request
-            is_own_data: Whether this is the user's own data
-            
-        Returns:
-            Filtered user data
-        """
         if not user_data or not isinstance(user_data, dict):
             return {}
         
@@ -144,16 +110,6 @@ class AccessControlMixin:
         return colleague_data
     
     def validate_company_access(self, requesting_user: Dict[str, Any], company_id: str) -> bool:
-        """
-        Validate if user can access company data.
-        
-        Args:
-            requesting_user: User making the request
-            company_id: Company ID to check access for
-            
-        Returns:
-            True if access is allowed, False otherwise
-        """
         if not requesting_user or not isinstance(requesting_user, dict):
             logger.warning("Invalid requesting user for company access validation")
             return False
@@ -170,16 +126,6 @@ class AccessControlMixin:
         return True
     
     def filter_company_users(self, users: List[Dict[str, Any]], requesting_user: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """
-        Filter company users based on requesting user's access level.
-        
-        Args:
-            users: List of user data dictionaries
-            requesting_user: User making the request
-            
-        Returns:
-            List of filtered user data
-        """
         if not users or not requesting_user:
             return []
         

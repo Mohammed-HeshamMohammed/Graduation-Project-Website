@@ -9,7 +9,7 @@ import time
 import logging
 
 from app.services.storage import UserStorage
-from app.services.utils import hash_password, verify_password
+from app.services.utils.auth_utils import hash_password, verify_password
 from .validators import get_audit_context
 from .exceptions import PasswordHistoryError
 

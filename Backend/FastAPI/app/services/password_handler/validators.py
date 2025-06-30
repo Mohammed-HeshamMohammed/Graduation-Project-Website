@@ -1,13 +1,10 @@
 # app/services/password_handler/validators.py
-"""
-Password validation and token validation utilities
-"""
-
 from fastapi import HTTPException, Request, status
 from typing import Dict, Any
 import logging
 
-from app.services.utils import verify_token, validate_password_strength as util_validate_password_strength
+# Updated import to use the class method properly
+from app.services.utils.auth_utils import verify_token, AuthUtils
 from .exceptions import TokenValidationError, PasswordValidationError
 
 logger = logging.getLogger(__name__)
@@ -54,7 +51,8 @@ def validate_password_strength(password: str) -> bool:
     Validate password strength using utility function
     """
     try:
-        return util_validate_password_strength(password)
+        # Use the static method from AuthUtils class
+        return AuthUtils.validate_password_strength(password)
     except Exception as e:
         logger.error(f"Password strength validation error: {e}")
         raise PasswordValidationError(f"Password validation failed: {str(e)}")
